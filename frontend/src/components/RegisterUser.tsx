@@ -17,7 +17,9 @@ export default function RegisterUser({ token }: RegisterUserProps) {
     setIsLoading(true);
     try {
       // Envia a requisição para a sua rota de registro no backend
-      await api.post('/register', { name, email, password });
+      await api.post('/register', { name, email, password }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       toast.success(`Usuário ${name} criado com sucesso!`);
       setName('');
       setEmail('');
