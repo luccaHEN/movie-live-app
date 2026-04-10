@@ -5,11 +5,12 @@ import MovieSearch from './components/MovieSearch';
 import SavedMovies from './components/SavedMovies';
 import Settings from './components/Settings';
 import Dashboard from './components/Dashboard';
+import RegisterUser from './components/RegisterUser';
 import { Toaster } from 'react-hot-toast';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
-  const [view, setView] = useState<'search' | 'saved' | 'dashboard' | 'settings'>('search');
+  const [view, setView] = useState<'search' | 'saved' | 'dashboard' | 'settings' | 'register'>('search');
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState<{ bestMovie: any, topRescuer: string | null }>({ bestMovie: null, topRescuer: null });
 
@@ -90,6 +91,9 @@ export default function App() {
             <button className={`sidebar-btn ${view === 'saved' ? 'active' : ''}`} onClick={() => setView('saved')}>🎬 Meus Filmes</button>
             <button className={`sidebar-btn ${view === 'dashboard' ? 'active' : ''}`} onClick={() => setView('dashboard')}>📊 Dashboard</button>
             <button className={`sidebar-btn ${view === 'settings' ? 'active' : ''}`} onClick={() => setView('settings')}>⚙️ Configurações</button>
+            {user?.email === 'admin@sumasmovie.com' && (
+              <button className={`sidebar-btn ${view === 'register' ? 'active' : ''}`} onClick={() => setView('register')}>👥 Criar Usuário</button>
+            )}
           </nav>
 
           {(stats.bestMovie || stats.topRescuer) && (
@@ -122,6 +126,7 @@ export default function App() {
           {view === 'saved' && <SavedMovies token={token} />}
           {view === 'dashboard' && <Dashboard token={token} />}
           {view === 'settings' && <Settings token={token} user={user} setUser={setUser} />}
+          {view === 'register' && <RegisterUser token={token} />}
         </main>
       </div>
       ) : (
