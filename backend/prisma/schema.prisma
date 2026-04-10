@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Movie {
+  id       Int       @id @default(autoincrement())
+  title    String
+  tmdbId   Int?      // Retiramos o @unique daqui
+  poster   String?
+  genre    String?
+
+  // Relação com o Usuário
+  userId   Int
+  user     User      @relation(fields: [userId], references: [id])
+
+  // Novos campos: Agenda, Assistido e Notas
+  watched        Boolean   @default(false)
+  watchDate      DateTime?
+  streamerRating Float?
+  chatRating     Float?
+  requestedBy    String?   // Nick de quem resgatou o filme
+
+  sessions Session[]
+
+  // Garante que O MESMO usuário não salve O MESMO filme duas vezes
+  @@unique([tmdbId, userId])
+}
+
+model Session {
+  id        Int      @id @default(autoincrement())
+  movieId   Int
+  date      DateTime
+  type      String
+  watched   Boolean  @default(false)
+
+  movie     Movie    @relation(fields: [movieId], references: [id])
+  rating    Rating?
+}
+
+model Rating {
+  id              Int     @id @default(autoincrement())
+  sessionId       Int     @unique
+  streamerRating  Float
+  chatRating      Float
+
+  session Session @relation(fields: [sessionId], references: [id])
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  email    String @unique
+  password String
+  name     String?
+  avatar   String?
+  
+  // Relacionamento inverso
+  movies   Movie[]
+}
