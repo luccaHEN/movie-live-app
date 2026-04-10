@@ -18,6 +18,7 @@ export default function App() {
     localStorage.removeItem('token');
     setToken('');
     setUser(null);
+    setView('search'); // Volta para a tela padrão (Buscar Filmes) ao deslogar
   };
 
   useEffect(() => {
