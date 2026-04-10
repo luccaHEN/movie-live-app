@@ -212,11 +212,21 @@ export default function SavedMovies({ token }: SavedMoviesProps) {
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
               <label className="input-label" style={{ width: '50%' }}>
                 Minha Nota:
-                <input type="number" min="0" max="5" step="0.5" value={movie.streamerRating || ''} onChange={(e) => handleUpdateMovie(movie.id, { streamerRating: e.target.value ? parseFloat(e.target.value) : null })} />
+                <input 
+                  type="number" min="0" max="5" step="0.5" 
+                  value={movie.streamerRating ?? ''} 
+                  onChange={(e) => setSavedMovies(prev => prev.map(m => m.id === movie.id ? { ...m, streamerRating: e.target.value } : m))} 
+                  onBlur={(e) => handleUpdateMovie(movie.id, { streamerRating: e.target.value ? parseFloat(e.target.value) : null })} 
+                />
               </label>
               <label className="input-label" style={{ width: '50%' }}>
                 Nota Chat:
-                <input type="number" min="0" max="5" step="0.5" value={movie.chatRating || ''} onChange={(e) => handleUpdateMovie(movie.id, { chatRating: e.target.value ? parseFloat(e.target.value) : null })} />
+                <input 
+                  type="number" min="0" max="5" step="0.5" 
+                  value={movie.chatRating ?? ''} 
+                  onChange={(e) => setSavedMovies(prev => prev.map(m => m.id === movie.id ? { ...m, chatRating: e.target.value } : m))} 
+                  onBlur={(e) => handleUpdateMovie(movie.id, { chatRating: e.target.value ? parseFloat(e.target.value) : null })} 
+                />
               </label>
             </div>
           </div>
