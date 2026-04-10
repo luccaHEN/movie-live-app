@@ -6,8 +6,15 @@ import { routes } from './routes';
 
 const app = express();
 
-// Permite que qualquer site (incluindo sua Vercel) acesse a API, evitando erros de CORS
-app.use(cors());
+// Bloqueia acessos de outros sites, permitindo apenas o seu Frontend (Vercel) e o localhost (seu PC)
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:5173',
+  'http://localhost:5173' // Garante que você consiga continuar testando localmente
+];
+
+app.use(cors({
+  origin: allowedOrigins
+}));
 app.use(express.json({ limit: '5mb' }));
 app.use(routes);
 

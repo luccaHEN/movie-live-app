@@ -70,14 +70,17 @@ export default function SavedMovies({ token }: SavedMoviesProps) {
 
   // Função para atualizar qualquer campo do filme automaticamente
   const handleUpdateMovie = async (id: number, updates: any) => {
+    // Atualização Otimista: Muda na tela imediatamente para não travar a digitação
+    setSavedMovies(prevMovies => prevMovies.map(movie => movie.id === id ? { ...movie, ...updates } : movie));
+
     try {
       await api.put(`/movies/${id}`, updates, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      // Atualiza a lista na tela com o novo valor
-      setSavedMovies(savedMovies.map(movie => movie.id === id ? { ...movie, ...updates } : movie));
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Erro ao atualizar o filme.');
+      // Se der erro no banco de dados, busca os dados reais novamente para reverter a tela
+      fetchSavedMovies();
     }
   };
 
