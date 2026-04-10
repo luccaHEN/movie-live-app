@@ -16,12 +16,14 @@ app.use(cors({
   origin: allowedOrigins
 }));
 app.use(express.json({ limit: '5mb' }));
-app.use(routes);
 
-// Rota de teste para garantir que a API está no ar
+// Rota pública de teste para garantir que a API está no ar (Usada pelo Cron-job)
 app.get('/', (req: Request, res: Response) => {
   res.json({ message: '🎬 Sumasflix API está rodando perfeitamente!' });
 });
+
+// Importa as demais rotas (protegidas e desprotegidas)
+app.use(routes);
 
 const PORT = process.env.PORT || 3333;
 
