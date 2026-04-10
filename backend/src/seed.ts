@@ -1,18 +1,28 @@
-import { prisma } from './prisma';
 import bcrypt from 'bcrypt';
+import { prisma } from './prisma';
 
 async function main() {
-  const hashedPassword = await bcrypt.hash('123456', 10);
-  
-  const user = await prisma.user.upsert({
-    where: { email: 'admin@stream.com' },
-    update: {},
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@sumasmovie.com';
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminPassword) {
+    console.error('❌ ERRO: A variável ADMIN_PASSWORD não está definida no arquivo .env');
+    process.exit(1);
+  }
+
+  // Gera o hash da senha (nunca salve em texto puro!)
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+  const admin = await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: { password: hashedPassword },
     create: {
-      email: 'admin@stream.com',
+      email: adminEmail,
       password: hashedPassword,
+      name: 'Igão',
     },
   });
-  console.log('✅ Admin criado:', user.email);
+  console.log('✅ Usuário Admin criado/verificado:', admin.email);
 }
 
-main().catch(console.error).finally(() => prisma.$disconnect());
+main().catch(e => { console.error(e); process.exit(1); }).finally(async () => { await prisma.$disconnect(); });
