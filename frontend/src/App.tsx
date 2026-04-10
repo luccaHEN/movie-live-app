@@ -78,7 +78,7 @@ export default function App() {
       {token ? (
       <div className="app-container">
         <aside className="sidebar">
-            <h1 className="sidebar-title" onClick={() => setView('search')} style={{ cursor: 'pointer' }}>Sealflix</h1>
+            <h1 className="sidebar-title" onClick={() => setView('search')} style={{ cursor: 'pointer' }}>Sumasflix</h1>
 
           {user && (
             <div className="user-profile">

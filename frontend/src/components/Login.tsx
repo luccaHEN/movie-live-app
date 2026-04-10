@@ -36,7 +36,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         minHeight: '100vh'
       }}
     >
-      <h1 className="app-title" style={{ marginBottom: '40px' }}>Sealflix</h1>
+      <h1 className="app-title" style={{ marginBottom: '40px' }}>Sumasflix</h1>
       
       <form onSubmit={handleLogin} className="login-form">
         <input type="email" placeholder="Digite seu email" value={email} onChange={e => setEmail(e.target.value)} required />
