@@ -6,15 +6,8 @@ import { routes } from './routes';
 
 const app = express();
 
-// Cria uma lista de origens permitidas
-const allowedOrigins = ['http://localhost:5173'];
-if (process.env.FRONTEND_URL) {
-  allowedOrigins.push(process.env.FRONTEND_URL);
-}
-
-app.use(cors({
-  origin: allowedOrigins // Agora aceita o local e a Vercel
-}));
+// Permite que qualquer site (incluindo sua Vercel) acesse a API, evitando erros de CORS
+app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 app.use(routes);
 
