@@ -20,7 +20,7 @@ app.use(routes);
 
 // Rota de teste para garantir que a API está no ar
 app.get('/', (req: Request, res: Response) => {
-  res.json({ message: '🎬 SumasMovie API está rodando perfeitamente!' });
+  res.json({ message: '🎬 Sealflix API está rodando perfeitamente!' });
 });
 
 const PORT = process.env.PORT || 3333;
