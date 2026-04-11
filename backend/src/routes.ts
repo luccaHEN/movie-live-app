@@ -3,6 +3,7 @@ import { AuthController } from './controllers/AuthController';
 import { MovieController } from './controllers/MovieController';
 import { UserController } from './controllers/UserController';
 import { authMiddleware } from './middlewares/auth';
+import { prisma } from './prisma';
 
 export const routes = Router();
 
@@ -13,6 +14,40 @@ const userController = new UserController();
 // Rotas Públicas
 routes.post('/login', authController.login);
 routes.post('/register', authController.register);
+
+routes.get('/movies/public/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    // 1. Busca o usuário pelo nome
+    const user = await prisma.user.findFirst({
+      where: { name: username }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado." });
+    }
+
+    // 2. Busca os filmes apenas desse usuário, retornando apenas campos seguros
+    const movies = await prisma.movie.findMany({
+      where: { userId: user.id },
+      select: {
+        id: true,
+        title: true,
+        poster: true,
+        watched: true,
+        watchDate: true,
+        requestedBy: true,
+        streamerRating: true,
+      }
+    });
+
+    res.json(movies);
+  } catch (error) {
+    console.error("Erro ao buscar filmes públicos:", error);
+    res.status(500).json({ error: "Erro ao carregar a lista de filmes." });
+  }
+});
 
 // Rotas Protegidas (Exigem o envio do Token no header de Autorização)
 routes.use(authMiddleware);

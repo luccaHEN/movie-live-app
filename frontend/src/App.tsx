@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import api from './services/api';
 import Login from './components/Login';
 import MovieSearch from './components/MovieSearch';
@@ -6,6 +7,7 @@ import SavedMovies from './components/SavedMovies';
 import Settings from './components/Settings';
 import Dashboard from './components/Dashboard';
 import RegisterUser from './components/RegisterUser';
+import PublicList from './components/PublicList';
 import { Toaster } from 'react-hot-toast';
 
 export default function App() {
@@ -74,7 +76,7 @@ export default function App() {
   }, [token, view]); // Atualiza as estatísticas toda vez que você trocar de aba!
 
   return (
-    <>
+    <BrowserRouter>
       <Toaster 
         position="bottom-right" 
         toastOptions={{
@@ -87,9 +89,12 @@ export default function App() {
           error: { iconTheme: { primary: 'var(--danger)', secondary: '#fff' } },
         }} 
       />
-      {token ? (
-      <>
-      <div className="app-container">
+      <Routes>
+        <Route path="/lista-publica/:username" element={<PublicList />} />
+        <Route path="*" element={
+          token ? (
+          <>
+          <div className="app-container">
         <aside className="sidebar">
             <h1 className="sidebar-title" onClick={() => handleNavigation('search')} style={{ cursor: 'pointer' }}>Sumasflix</h1>
 
@@ -163,7 +168,7 @@ export default function App() {
         <main className="main-content">
           {view === 'search' && <MovieSearch token={token} />}
           {view === 'saved' && <SavedMovies token={token} />}
-          {view === 'dashboard' && <Dashboard token={token} />}
+          {view === 'dashboard' && <Dashboard token={token} username={user?.name} />}
           {view === 'settings' && <Settings token={token} user={user} setUser={setUser} />}
           {view === 'register' && <RegisterUser token={token} />}
         </main>
@@ -268,7 +273,9 @@ export default function App() {
       </>
       ) : (
         <Login onLoginSuccess={setToken} />
-      )}
-    </>
+      )
+    } />
+      </Routes>
+    </BrowserRouter>
   );
 }

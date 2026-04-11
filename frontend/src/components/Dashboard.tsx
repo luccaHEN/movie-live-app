@@ -4,9 +4,10 @@ import toast from 'react-hot-toast';
 
 interface DashboardProps {
   token: string;
+  username?: string;
 }
 
-export default function Dashboard({ token }: DashboardProps) {
+export default function Dashboard({ token, username }: DashboardProps) {
   const [movies, setMovies] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -88,9 +89,19 @@ export default function Dashboard({ token }: DashboardProps) {
   const chartData = Object.entries(moviesPerMonth).sort(([a], [b]) => a.localeCompare(b)).slice(-6) as [string, number][]; // Pega no máximo os últimos 6 meses
   const maxMoviesInMonth = chartData.length > 0 ? Math.max(...chartData.map(d => d[1])) : 1;
 
+  const handleCopyPublicLink = () => {
+    // Pega o username do usuário dinamicamente e remove espaços indesejados
+    const publicUrl = `${window.location.origin}/lista-publica/${username ? encodeURIComponent(username) : 'meu-canal'}`;
+    navigator.clipboard.writeText(publicUrl);
+    toast.success('Link público copiado para a área de transferência! 🔗');
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: '20px', maxWidth: '1100px', margin: '0 auto' }}>
-      <h2 style={{ color: 'var(--primary)', margin: '0 0 10px 0' }}>Estatísticas da Stream 📊</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '10px' }}>
+        <h2 style={{ color: 'var(--primary)', margin: '0' }}>Estatísticas da Stream 📊</h2>
+        <button onClick={handleCopyPublicLink} className="btn-primary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto' }}>🔗 Copiar Link Agenda</button>
+      </div>
       
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', width: '100%', alignItems: 'flex-start', justifyContent: 'center' }}>
         
