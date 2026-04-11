@@ -17,6 +17,11 @@ export default function App() {
   const [showBestMoviesModal, setShowBestMoviesModal] = useState(false);
   const [champion, setChampion] = useState<any>(null);
 
+  const handleNavigation = (newView: typeof view) => {
+    setView(newView);
+    document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     setToken('');
@@ -86,7 +91,7 @@ export default function App() {
       <>
       <div className="app-container">
         <aside className="sidebar">
-            <h1 className="sidebar-title" onClick={() => setView('search')} style={{ cursor: 'pointer' }}>Sumasflix</h1>
+            <h1 className="sidebar-title" onClick={() => handleNavigation('search')} style={{ cursor: 'pointer' }}>Sumasflix</h1>
 
           {user && (
             <div className="user-profile">
@@ -96,12 +101,12 @@ export default function App() {
           )}
 
           <nav className="sidebar-nav">
-            <button className={`sidebar-btn ${view === 'search' ? 'active' : ''}`} onClick={() => setView('search')}>🔍 Buscar Filmes</button>
-            <button className={`sidebar-btn ${view === 'saved' ? 'active' : ''}`} onClick={() => setView('saved')}>🎬 Meus Filmes</button>
-            <button className={`sidebar-btn ${view === 'dashboard' ? 'active' : ''}`} onClick={() => setView('dashboard')}>📊 Dashboard</button>
-            <button className={`sidebar-btn ${view === 'settings' ? 'active' : ''}`} onClick={() => setView('settings')}>⚙️ Configurações</button>
+            <button className={`sidebar-btn ${view === 'search' ? 'active' : ''}`} onClick={() => handleNavigation('search')}>🔍 Buscar Filmes</button>
+            <button className={`sidebar-btn ${view === 'saved' ? 'active' : ''}`} onClick={() => handleNavigation('saved')}>🎬 Meus Filmes</button>
+            <button className={`sidebar-btn ${view === 'dashboard' ? 'active' : ''}`} onClick={() => handleNavigation('dashboard')}>📊 Dashboard</button>
+            <button className={`sidebar-btn ${view === 'settings' ? 'active' : ''}`} onClick={() => handleNavigation('settings')}>⚙️ Configurações</button>
             {user?.email === 'admin@sumasmovie.com' && (
-              <button className={`sidebar-btn ${view === 'register' ? 'active' : ''}`} onClick={() => setView('register')}>👥 Criar Usuário</button>
+              <button className={`sidebar-btn ${view === 'register' ? 'active' : ''}`} onClick={() => handleNavigation('register')}>👥 Criar Usuário</button>
             )}
           </nav>
 

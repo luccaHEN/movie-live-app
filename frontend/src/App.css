@@ -37,6 +37,7 @@
   .vite {
     position: absolute;
   }
+  
 
   .framework {
     z-index: 1;
@@ -181,4 +182,5 @@
     right: 0;
     border-right-color: var(--border);
   }
+
 }

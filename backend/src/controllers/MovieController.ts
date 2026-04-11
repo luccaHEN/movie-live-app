@@ -4,7 +4,7 @@ import { prisma } from '../prisma';
 
 export class MovieController {
   async search(req: Request, res: Response): Promise<Response | any> {
-    const { query } = req.query;
+    const { query, page = 1 } = req.query;
 
     if (!query) {
       return res.status(400).json({ error: 'O parâmetro query é obrigatório' });
@@ -20,6 +20,7 @@ export class MovieController {
         params: {
           query: query as string,
           language: 'pt-BR',
+          page
         },
         headers: {
           Authorization: `Bearer ${process.env.TMDB_TOKEN}`
@@ -34,13 +35,14 @@ export class MovieController {
   }
 
   async popular(req: Request, res: Response): Promise<Response | any> {
+    const { page = 1 } = req.query;
     if (!process.env.TMDB_TOKEN) {
       return res.status(500).json({ error: 'Erro interno de configuração do servidor' });
     }
 
     try {
       const response = await axios.get(`https://api.themoviedb.org/3/movie/popular`, {
-        params: { language: 'pt-BR' },
+        params: { language: 'pt-BR', page },
         headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
       });
       return res.json(response.data.results);

@@ -12,6 +12,7 @@ export default function SavedMovies({ token }: SavedMoviesProps) {
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'WATCHED' | 'UNWATCHED'>('ALL');
   const [rescuerFilter, setRescuerFilter] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'DATE' | 'RATING' | 'ALPHA'>('DATE');
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const moviesPerPage = 35;
@@ -38,7 +39,14 @@ export default function SavedMovies({ token }: SavedMoviesProps) {
   // Volta para a primeira página sempre que os filtros mudarem
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedMonth, statusFilter, rescuerFilter]);
+  }, [selectedMonth, statusFilter, rescuerFilter, sortBy]);
+
+  const handleResetFilters = () => {
+    setRescuerFilter('');
+    setStatusFilter('ALL');
+    setSelectedMonth('ALL');
+    setSortBy('DATE');
+  };
 
   const handleDeleteMovie = (id: number) => {
     toast(
@@ -127,10 +135,18 @@ export default function SavedMovies({ token }: SavedMoviesProps) {
     })
     .filter(m => {
       if (rescuerFilter.trim() === '') return true;
-      const requestedBy = m.requestedBy || 'ninguém'; // Permite buscar por "ninguém" também
-      return requestedBy.toLowerCase().includes(rescuerFilter.toLowerCase());
+      const searchTerm = rescuerFilter.toLowerCase();
+      const requestedBy = (m.requestedBy || 'ninguém').toLowerCase();
+      const title = (m.title || '').toLowerCase();
+      return requestedBy.includes(searchTerm) || title.includes(searchTerm);
     })
     .sort((a, b) => {
+      if (sortBy === 'ALPHA') {
+        return (a.title || '').localeCompare(b.title || '');
+      }
+      if (sortBy === 'RATING') {
+        return (b.streamerRating || 0) - (a.streamerRating || 0);
+      }
       // Se os dois não têm data, mantém a ordem original
       if (!a.watchDate && !b.watchDate) return 0;
       // Se 'a' não tem data, joga para o final da lista
@@ -148,48 +164,92 @@ export default function SavedMovies({ token }: SavedMoviesProps) {
   const totalPages = Math.ceil(filteredMovies.length / moviesPerPage);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+    <div className="saved-movies-container" style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', width: '100%', gap: '30px' }}>
+      <style>
+        {`
+          .btn-reset-filters:hover {
+            background-color: var(--danger, #dc2626) !important;
+            border-color: var(--danger, #dc2626) !important;
+            color: #fff !important;
+          }
+        `}
+      </style>
       
-      {/* Barra de Pesquisa de Resgatador */}
-      <div style={{ marginBottom: '20px', width: '100%', maxWidth: '400px' }}>
-        <input 
-          type="text" 
-          placeholder="🔍 Buscar pelo Nick de quem resgatou..." 
-          value={rescuerFilter} 
-          onChange={e => setRescuerFilter(e.target.value)} 
-        />
-      </div>
-
-      {/* Botões de Filtro por Status */}
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '15px' }}>
-        <button className={statusFilter === 'ALL' ? 'btn-primary' : 'btn-secondary'} onClick={() => setStatusFilter('ALL')}>Todos os Status</button>
-        <button className={statusFilter === 'UNWATCHED' ? 'btn-primary' : 'btn-secondary'} onClick={() => setStatusFilter('UNWATCHED')}>🍿 Para Assistir</button>
-        <button className={statusFilter === 'WATCHED' ? 'btn-primary' : 'btn-secondary'} onClick={() => setStatusFilter('WATCHED')}>✅ Já Assistidos</button>
-      </div>
-
-      {/* Botões de Filtro por Mês */}
-      {savedMovies.length > 0 && (
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '30px' }}>
-          <button className={selectedMonth === 'ALL' ? 'btn-primary' : 'btn-secondary'} onClick={() => setSelectedMonth('ALL')}>Todos os Filmes</button>
-          {uniqueMonthKeys.map(key => (
-            <button key={key} className={selectedMonth === key ? 'btn-primary' : 'btn-secondary'} onClick={() => setSelectedMonth(key)}>{getMonthLabel(key)}</button>
-          ))}
+      {/* Painel lateral de Filtros */}
+      <div style={{ display: 'flex', flexDirection: 'column', width: '250px', minWidth: '250px', flexShrink: 0, gap: '20px', position: 'sticky', top: '20px', zIndex: 10, backgroundColor: 'var(--bg-color)' }}>
+        
+        {/* Barra de Pesquisa */}
+        <div style={{ width: '100%' }}>
+          <input 
+            type="text" 
+            placeholder="🔍 Buscar filme ou nick..." 
+            value={rescuerFilter} 
+            onChange={e => setRescuerFilter(e.target.value)} 
+            style={{ width: '100%', boxSizing: 'border-box' }}
+          />
         </div>
-      )}
+
+        {/* Filtros por Status */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--primary)' }}>Status</h3>
+          <button className={statusFilter === 'ALL' ? 'btn-primary' : 'btn-secondary'} onClick={() => setStatusFilter('ALL')}>Todos</button>
+          <button className={statusFilter === 'UNWATCHED' ? 'btn-primary' : 'btn-secondary'} onClick={() => setStatusFilter('UNWATCHED')}>🍿 Para Assistir</button>
+          <button className={statusFilter === 'WATCHED' ? 'btn-primary' : 'btn-secondary'} onClick={() => setStatusFilter('WATCHED')}>✅ Já Assistidos</button>
+        </div>
+
+        {/* Filtros por Mês */}
+        {savedMovies.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--primary)' }}>Mês</h3>
+            <button className={selectedMonth === 'ALL' ? 'btn-primary' : 'btn-secondary'} onClick={() => setSelectedMonth('ALL')}>Todos os Filmes</button>
+            {uniqueMonthKeys.map(key => (
+              <button key={key} className={selectedMonth === key ? 'btn-primary' : 'btn-secondary'} onClick={() => setSelectedMonth(key)}>{getMonthLabel(key)}</button>
+            ))}
+          </div>
+        )}
+
+        {/* Filtros de Ordenação */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--primary)' }}>Ordenar por</h3>
+          <select 
+            value={sortBy} 
+            onChange={e => setSortBy(e.target.value as any)}
+            style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--input-border)', backgroundColor: 'var(--card-bg)', color: 'var(--text-color)', outline: 'none' }}
+          >
+            <option value="DATE">📅 Data de Agendamento</option>
+            <option value="RATING">⭐ Minha Nota</option>
+            <option value="ALPHA">🔤 Ordem Alfabética</option>
+          </select>
+        </div>
+
+        {/* Botão de Limpar Filtros */}
+        {(rescuerFilter !== '' || statusFilter !== 'ALL' || selectedMonth !== 'ALL' || sortBy !== 'DATE') && (
+          <button 
+            className="btn-secondary btn-reset-filters" 
+            onClick={handleResetFilters}
+            style={{ marginTop: '10px', transition: 'all 0.2s ease-in-out' }}
+          >
+            ✖️ Limpar Filtros
+          </button>
+        )}
+      </div>
+
+      {/* Conteúdo Principal (Grid de Filmes e Paginação) */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
 
       {isLoading ? (
         <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '1.2rem' }}>Carregando filmes... 🍿</p>
       ) : (
-        <div className="movies-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', width: '100%', gap: '20px' }}>
+        <div className="movies-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', width: '100%', maxWidth: '100%', gap: '20px', marginTop: '0' }}>
           {currentMovies.length === 0 ? <p>Nenhum filme encontrado para este filtro.</p> : currentMovies.map(movie => (
-          <div key={movie.id} className="movie-card">
+          <div key={movie.id} className="movie-card" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
           {/* Capa e título agora são clicáveis */}
           <div onClick={() => handleShowDetails(movie.tmdbId)} className="movie-card-header" title="Ver Detalhes">
             <p className="movie-title">{movie.title}</p>
             {movie.poster ? (
-              <img src={`https://image.tmdb.org/t/p/w200${movie.poster}`} alt={movie.title} className="movie-poster" />
+              <img src={`https://image.tmdb.org/t/p/w200${movie.poster}`} alt={movie.title} className="movie-poster" style={{ height: 'auto', aspectRatio: '2/3' }} />
             ) : (
-              <div className="movie-poster-placeholder"><span>Sem capa</span></div>
+              <div className="movie-poster-placeholder" style={{ height: 'auto', aspectRatio: '2/3' }}><span>Sem capa</span></div>
             )}
           </div>
           
@@ -249,7 +309,7 @@ export default function SavedMovies({ token }: SavedMoviesProps) {
 
     {/* Controles de Paginação */}
     {totalPages > 1 && (
-      <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginTop: '30px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginTop: '30px', alignItems: 'center', alignSelf: 'center' }}>
         <button 
           className="btn-secondary" 
           onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} 
@@ -267,6 +327,7 @@ export default function SavedMovies({ token }: SavedMoviesProps) {
         </button>
       </div>
     )}
+      </div>
 
       {/* Modal Flutuante com os Detalhes do Filme */}
       {selectedMovieDetails && (
@@ -279,6 +340,14 @@ export default function SavedMovies({ token }: SavedMoviesProps) {
             <p style={{ margin: '5px 0' }}><strong>Gêneros:</strong> {selectedMovieDetails.genres?.map((g: any) => g.name).join(', ')}</p>
             <p style={{ margin: '5px 0' }}><strong>Nota TMDB:</strong> {selectedMovieDetails.vote_average ? `${selectedMovieDetails.vote_average.toFixed(1)} / 10` : 'N/A'}</p>
             <p style={{ marginTop: '15px', lineHeight: '1.5' }}><strong>Sinopse:</strong><br/>{selectedMovieDetails.overview || 'Nenhuma sinopse disponível para este filme.'}</p>
+            
+            <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'center' }}>
+              <a href={`https://www.themoviedb.org/movie/${selectedMovieDetails.id}/watch`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', width: '100%' }}>
+                <button className="btn-primary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '1.1rem', padding: '12px' }}>
+                  ▶️ Onde Assistir (JustWatch)
+                </button>
+              </a>
+            </div>
           </div>
         </div>
       )}
