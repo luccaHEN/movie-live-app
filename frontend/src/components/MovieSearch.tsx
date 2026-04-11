@@ -4,9 +4,10 @@ import toast from 'react-hot-toast';
 
 interface MovieSearchProps {
   token: string;
+  streamerMode: boolean;
 }
 
-export default function MovieSearch({ token }: MovieSearchProps) {
+export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [movies, setMovies] = useState<any[]>([]);
   const [selectedMovieDetails, setSelectedMovieDetails] = useState<any | null>(null);
@@ -160,13 +161,15 @@ export default function MovieSearch({ token }: MovieSearchProps) {
     const draft = drafts[movie.id] || {};
 
     // Validação para tornar os campos obrigatórios
-    if (!draft.requestedBy || draft.requestedBy.trim() === '') {
-      toast.error('Por favor, preencha quem resgatou o filme.');
-      return;
-    }
-    if (!draft.watchDate) {
-      toast.error('Por favor, selecione uma data para assistir o filme.');
-      return;
+    if (streamerMode) {
+      if (!draft.requestedBy || draft.requestedBy.trim() === '') {
+        toast.error('Por favor, preencha quem resgatou o filme.');
+        return;
+      }
+      if (!draft.watchDate) {
+        toast.error('Por favor, selecione uma data para assistir o filme.');
+        return;
+      }
     }
 
     // Monta o pacote de dados básico do filme
@@ -175,9 +178,12 @@ export default function MovieSearch({ token }: MovieSearchProps) {
       tmdbId: movie.id, 
       poster: movie.poster_path, 
       genre: "N/A",
-      requestedBy: draft.requestedBy.trim(),
-      watchDate: draft.watchDate
     };
+
+    if (streamerMode) {
+      payload.requestedBy = draft.requestedBy?.trim() || '';
+      payload.watchDate = draft.watchDate;
+    }
 
     try {
       await api.post('/movies', payload, {
@@ -238,17 +244,21 @@ export default function MovieSearch({ token }: MovieSearchProps) {
                 ✅ Já na lista
               </div>
             ) : (
-              <>
-                <label className="input-label">
-                  Resgatado por:
-                  <input type="text" placeholder="Ex: viewer123" value={drafts[movie.id]?.requestedBy || ''} onChange={(e) => setDrafts({ ...drafts, [movie.id]: { ...drafts[movie.id], requestedBy: e.target.value } })} />
-                </label>
-                <label className="input-label" style={{ marginBottom: '15px' }}>
-                  Agendar para:
-                  <input type="date" value={drafts[movie.id]?.watchDate || ''} onChange={(e) => setDrafts({ ...drafts, [movie.id]: { ...drafts[movie.id], watchDate: e.target.value } })} />
-                </label>
-                <button onClick={() => handleSaveMovie(movie)} className="btn-success" style={{ marginTop: 'auto' }}>Salvar Filme</button>
-              </>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: 'auto' }}>
+                {streamerMode && (
+                  <>
+                    <label className="input-label">
+                      Resgatado por:
+                      <input type="text" placeholder="Ex: viewer123" value={drafts[movie.id]?.requestedBy || ''} onChange={(e) => setDrafts({ ...drafts, [movie.id]: { ...drafts[movie.id], requestedBy: e.target.value } })} />
+                    </label>
+                    <label className="input-label">
+                      Agendar para:
+                      <input type="date" value={drafts[movie.id]?.watchDate || ''} onChange={(e) => setDrafts({ ...drafts, [movie.id]: { ...drafts[movie.id], watchDate: e.target.value } })} />
+                    </label>
+                  </>
+                )}
+                <button onClick={() => handleSaveMovie(movie)} className="btn-success" style={{ width: '100%' }}>Salvar Filme</button>
+              </div>
             )}
             </div>
           ))}

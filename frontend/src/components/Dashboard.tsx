@@ -5,9 +5,10 @@ import toast from 'react-hot-toast';
 interface DashboardProps {
   token: string;
   username?: string;
+  streamerMode: boolean;
 }
 
-export default function Dashboard({ token, username }: DashboardProps) {
+export default function Dashboard({ token, username, streamerMode }: DashboardProps) {
   const [movies, setMovies] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -100,7 +101,9 @@ export default function Dashboard({ token, username }: DashboardProps) {
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: '20px', maxWidth: '1100px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '10px' }}>
         <h2 style={{ color: 'var(--primary)', margin: '0' }}>Estatísticas da Stream 📊</h2>
-        <button onClick={handleCopyPublicLink} className="btn-primary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto' }}>🔗 Copiar Link Agenda</button>
+        {streamerMode && (
+          <button onClick={handleCopyPublicLink} className="btn-primary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto' }}>🔗 Copiar Link Agenda</button>
+        )}
       </div>
       
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', width: '100%', alignItems: 'flex-start', justifyContent: 'center' }}>
@@ -123,10 +126,12 @@ export default function Dashboard({ token, username }: DashboardProps) {
             <h3 style={{ fontSize: '1rem', margin: '0 0 5px 0', color: '#ccc' }}>Média Streamer</h3>
             <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#3b82f6', margin: '0' }}>⭐ {avgStreamerRating}</p>
           </div>
-          <div className="movie-card" style={{ padding: '15px', textAlign: 'center' }}>
-            <h3 style={{ fontSize: '1rem', margin: '0 0 5px 0', color: '#ccc' }}>Média Chat</h3>
-            <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#8b5cf6', margin: '0' }}>⭐ {avgChatRating}</p>
-          </div>
+          {streamerMode && (
+            <div className="movie-card" style={{ padding: '15px', textAlign: 'center' }}>
+              <h3 style={{ fontSize: '1rem', margin: '0 0 5px 0', color: '#ccc' }}>Média Chat</h3>
+              <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#8b5cf6', margin: '0' }}>⭐ {avgChatRating}</p>
+            </div>
+          )}
           <div className="movie-card" style={{ padding: '15px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <h3 style={{ fontSize: '1rem', margin: '0 0 5px 0', color: '#ccc' }}>Tempo de Tela</h3>
             <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#10b981', margin: '0' }}>{totalWatchHours}h</p>
@@ -159,7 +164,8 @@ export default function Dashboard({ token, username }: DashboardProps) {
           )}
 
           {/* Row para dividir o espaço abaixo do gráfico */}
-          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', width: '100%' }}>
+          {streamerMode && (
+            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', width: '100%' }}>
             
             {/* Top Resgatador */}
             <div 
@@ -208,7 +214,8 @@ export default function Dashboard({ token, username }: DashboardProps) {
               {allUpcomingMovies.length > 3 && <span style={{ fontSize: '0.9rem', color: '#aaa', textDecoration: 'underline', textAlign: 'center', marginTop: '10px' }}>Ver todos ({allUpcomingMovies.length})</span>}
             </div>
 
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

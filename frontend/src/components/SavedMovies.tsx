@@ -4,9 +4,10 @@ import toast from 'react-hot-toast';
 
 interface SavedMoviesProps {
   token: string;
+  streamerMode: boolean;
 }
 
-export default function SavedMovies({ token }: SavedMoviesProps) {
+export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
   const [savedMovies, setSavedMovies] = useState<any[]>([]);
   const [selectedMovieDetails, setSelectedMovieDetails] = useState<any | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
@@ -182,7 +183,7 @@ export default function SavedMovies({ token }: SavedMoviesProps) {
         <div style={{ width: '100%' }}>
           <input 
             type="text" 
-            placeholder="🔍 Buscar filme ou nick..." 
+            placeholder={streamerMode ? "🔍 Buscar filme ou nick..." : "🔍 Buscar filme..."}
             value={rescuerFilter} 
             onChange={e => setRescuerFilter(e.target.value)} 
             style={{ width: '100%', boxSizing: 'border-box' }}
@@ -259,28 +260,33 @@ export default function SavedMovies({ token }: SavedMoviesProps) {
             Já assisti
           </label>
 
-          <label className="input-label">
-            Resgatado por:
-            <input
-              type="text"
-              placeholder="Ninguém"
-              value={movie.requestedBy || ''}
-              onChange={(e) => setSavedMovies(prev => prev.map(m => m.id === movie.id ? { ...m, requestedBy: e.target.value } : m))}
-              onBlur={(e) => handleUpdateMovie(movie.id, { requestedBy: e.target.value })}
-            />
-          </label>
-          <label className="input-label" style={{ marginBottom: '15px' }}>
-            Agendado para:
-            <input
-              type="date"
-              value={movie.watchDate ? new Date(movie.watchDate).toISOString().split('T')[0] : ''}
-              onChange={(e) => handleUpdateMovie(movie.id, { watchDate: e.target.value ? new Date(e.target.value).toISOString() : null })}
-            />
-          </label>
+          {streamerMode && (
+            <label className="input-label">
+              Resgatado por:
+              <input
+                type="text"
+                placeholder="Ninguém"
+                value={movie.requestedBy || ''}
+                onChange={(e) => setSavedMovies(prev => prev.map(m => m.id === movie.id ? { ...m, requestedBy: e.target.value } : m))}
+                onBlur={(e) => handleUpdateMovie(movie.id, { requestedBy: e.target.value })}
+              />
+            </label>
+          )}
+          
+          {(streamerMode || movie.watched) && (
+            <label className="input-label" style={{ marginBottom: '15px' }}>
+              {streamerMode ? 'Agendado para:' : 'Data que assistiu:'}
+              <input
+                type="date"
+                value={movie.watchDate ? new Date(movie.watchDate).toISOString().split('T')[0] : ''}
+                onChange={(e) => handleUpdateMovie(movie.id, { watchDate: e.target.value ? new Date(e.target.value).toISOString() : null })}
+              />
+            </label>
+          )}
 
           <div className="ratings-container">
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
-              <label className="input-label" style={{ width: '50%' }}>
+              <label className="input-label" style={{ width: streamerMode ? '50%' : '100%' }}>
                 Minha Nota:
                 <input 
                   type="number" min="0" max="5" step="0.5" 
@@ -289,15 +295,17 @@ export default function SavedMovies({ token }: SavedMoviesProps) {
                   onBlur={(e) => handleUpdateMovie(movie.id, { streamerRating: e.target.value ? parseFloat(e.target.value) : null })} 
                 />
               </label>
-              <label className="input-label" style={{ width: '50%' }}>
-                Nota Chat:
-                <input 
-                  type="number" min="0" max="5" step="0.5" 
-                  value={movie.chatRating ?? ''} 
-                  onChange={(e) => setSavedMovies(prev => prev.map(m => m.id === movie.id ? { ...m, chatRating: e.target.value } : m))} 
-                  onBlur={(e) => handleUpdateMovie(movie.id, { chatRating: e.target.value ? parseFloat(e.target.value) : null })} 
-                />
-              </label>
+              {streamerMode && (
+                <label className="input-label" style={{ width: '50%' }}>
+                  Nota Chat:
+                  <input 
+                    type="number" min="0" max="5" step="0.5" 
+                    value={movie.chatRating ?? ''} 
+                    onChange={(e) => setSavedMovies(prev => prev.map(m => m.id === movie.id ? { ...m, chatRating: e.target.value } : m))} 
+                    onBlur={(e) => handleUpdateMovie(movie.id, { chatRating: e.target.value ? parseFloat(e.target.value) : null })} 
+                  />
+                </label>
+              )}
             </div>
           </div>
 

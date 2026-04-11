@@ -6,9 +6,11 @@ interface SettingsProps {
   token: string;
   user: any;
   setUser: (user: any) => void;
+  streamerMode: boolean;
+  setStreamerMode: (val: boolean) => void;
 }
 
-export default function Settings({ token, user, setUser }: SettingsProps) {
+export default function Settings({ token, user, setUser, streamerMode, setStreamerMode }: SettingsProps) {
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,6 +78,25 @@ export default function Settings({ token, user, setUser }: SettingsProps) {
             </div>
           </div>
         </label>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 15px', border: '1px solid var(--input-border)', borderRadius: '8px', marginTop: '5px', backgroundColor: 'var(--bg-color)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', flex: 1, paddingRight: '15px' }}>
+            <strong style={{ fontSize: '0.95rem', color: 'var(--text-color)' }}>Modo Streamer</strong>
+            <span style={{ fontSize: '0.8rem', color: '#aaa', marginTop: '4px', lineHeight: '1.4' }}>Habilita campos de resgates, notas e agenda.</span>
+          </div>
+          <label className="checkbox-label" style={{ margin: 0, flexShrink: 0 }}>
+            <input 
+              type="checkbox" 
+              checked={streamerMode} 
+              onChange={(e) => {
+                setStreamerMode(e.target.checked);
+                localStorage.setItem('streamerMode', String(e.target.checked));
+                toast.success(`Modo Streamer ${e.target.checked ? 'Ativado' : 'Desativado'}!`);
+              }} 
+            />
+            <span className="toggle-switch"></span>
+          </label>
+        </div>
         
         {avatar && (
           <div style={{ textAlign: 'center', margin: '10px 0' }}>

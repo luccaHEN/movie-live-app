@@ -14,6 +14,10 @@ export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [view, setView] = useState<'search' | 'saved' | 'dashboard' | 'settings' | 'register'>('search');
   const [user, setUser] = useState<any>(null);
+  const [streamerMode, setStreamerMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('streamerMode');
+    return saved !== null ? saved === 'true' : true;
+  });
   const [stats, setStats] = useState<{ bestMovies: any[], topRescuer: string | null, topRescuerList?: { name: string, count: number }[] }>({ bestMovies: [], topRescuer: null });
   const [showTieModal, setShowTieModal] = useState(false);
   const [showBestMoviesModal, setShowBestMoviesModal] = useState(false);
@@ -166,10 +170,10 @@ export default function App() {
         </aside>
         
         <main className="main-content">
-          {view === 'search' && <MovieSearch token={token} />}
-          {view === 'saved' && <SavedMovies token={token} />}
-          {view === 'dashboard' && <Dashboard token={token} username={user?.name} />}
-          {view === 'settings' && <Settings token={token} user={user} setUser={setUser} />}
+          {view === 'search' && <MovieSearch token={token} streamerMode={streamerMode} />}
+          {view === 'saved' && <SavedMovies token={token} streamerMode={streamerMode} />}
+          {view === 'dashboard' && <Dashboard token={token} username={user?.name} streamerMode={streamerMode} />}
+          {view === 'settings' && <Settings token={token} user={user} setUser={setUser} streamerMode={streamerMode} setStreamerMode={setStreamerMode} />}
           {view === 'register' && <RegisterUser token={token} />}
         </main>
       </div>
