@@ -6,7 +6,7 @@ import SavedMovies from './components/SavedMovies';
 import Settings from './components/Settings';
 import Dashboard from './components/Dashboard';
 import RegisterUser from './components/RegisterUser';
-import { Toaster, toast } from 'react-hot-toast';
+import { Toaster } from 'react-hot-toast';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
