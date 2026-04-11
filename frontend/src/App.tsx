@@ -119,7 +119,7 @@ export default function App() {
             )}
           </nav>
 
-          {(stats.bestMovies.length > 0 || stats.topRescuer) && (
+          {streamerMode && (stats.bestMovies.length > 0 || stats.topRescuer) && (
             <div className="sidebar-hall-of-fame">
               <h3>🏆 Destaques do Mês</h3>
               {stats.bestMovies.length > 0 && (

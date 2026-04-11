@@ -289,20 +289,36 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
               <label className="input-label" style={{ width: streamerMode ? '50%' : '100%' }}>
                 Minha Nota:
                 <input 
-                  type="number" min="0" max="5" step="0.5" 
+                  type="number" min="0" max="10" step="0.01" 
                   value={movie.streamerRating ?? ''} 
-                  onChange={(e) => setSavedMovies(prev => prev.map(m => m.id === movie.id ? { ...m, streamerRating: e.target.value } : m))} 
-                  onBlur={(e) => handleUpdateMovie(movie.id, { streamerRating: e.target.value ? parseFloat(e.target.value) : null })} 
+                  onChange={(e) => setSavedMovies(prev => prev.map(m => m.id === movie.id ? { ...m, streamerRating: e.target.value.replace(',', '.') } : m))} 
+                  onBlur={(e) => {
+                    let val = e.target.value ? parseFloat(e.target.value.replace(',', '.')) : null;
+                    if (val !== null) {
+                      if (val < 0) val = 0;
+                      if (val > 10) val = 10;
+                      val = parseFloat(val.toFixed(2)); // Limita a 2 casas decimais no máximo
+                    }
+                    handleUpdateMovie(movie.id, { streamerRating: val });
+                  }} 
                 />
               </label>
               {streamerMode && (
                 <label className="input-label" style={{ width: '50%' }}>
                   Nota Chat:
                   <input 
-                    type="number" min="0" max="5" step="0.5" 
+                    type="number" min="0" max="10" step="0.01" 
                     value={movie.chatRating ?? ''} 
-                    onChange={(e) => setSavedMovies(prev => prev.map(m => m.id === movie.id ? { ...m, chatRating: e.target.value } : m))} 
-                    onBlur={(e) => handleUpdateMovie(movie.id, { chatRating: e.target.value ? parseFloat(e.target.value) : null })} 
+                    onChange={(e) => setSavedMovies(prev => prev.map(m => m.id === movie.id ? { ...m, chatRating: e.target.value.replace(',', '.') } : m))} 
+                    onBlur={(e) => {
+                      let val = e.target.value ? parseFloat(e.target.value.replace(',', '.')) : null;
+                      if (val !== null) {
+                        if (val < 0) val = 0;
+                        if (val > 10) val = 10;
+                        val = parseFloat(val.toFixed(2)); // Limita a 2 casas decimais no máximo
+                      }
+                      handleUpdateMovie(movie.id, { chatRating: val });
+                    }} 
                   />
                 </label>
               )}
