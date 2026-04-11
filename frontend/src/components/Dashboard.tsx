@@ -9,6 +9,7 @@ interface DashboardProps {
 export default function Dashboard({ token }: DashboardProps) {
   const [movies, setMovies] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     const fetchMovies = async () => {
@@ -43,20 +44,24 @@ export default function Dashboard({ token }: DashboardProps) {
   const avgChatRating = chatRatings.length ? (chatRatings.reduce((a, b) => a + b, 0) / chatRatings.length).toFixed(1) : 'N/A';
 
   const rescuerCounts = movies.reduce((acc, m) => {
-    const name = m.requestedBy || 'Ninguém';
+    const name = m.requestedBy ? m.requestedBy.trim() : 'Ninguém';
     acc[name] = (acc[name] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
+  // Transforma o objeto em um Array ordenado (do maior para o menor)
+  const ranking = Object.entries(rescuerCounts)
+    .filter(([name]) => name.toLowerCase() !== 'ninguém' && name !== '')
+    .map(([name, count]) => ({ name, count: count as number }))
+    .sort((a, b) => b.count - a.count);
+
   let topRescuer = 'N/A';
   let maxRescues = 0;
-  Object.entries(rescuerCounts).forEach(([name, count]) => {
-    const numCount = count as number;
-    if (name !== 'Ninguém' && numCount > maxRescues) {
-      topRescuer = name;
-      maxRescues = numCount;
-    }
-  });
+  if (ranking.length > 0) {
+    maxRescues = ranking[0].count;
+    const tiedUsers = ranking.filter(r => r.count === maxRescues);
+    topRescuer = tiedUsers.length === 1 ? tiedUsers[0].name : 'Empate!';
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: '20px' }}>
@@ -83,12 +88,49 @@ export default function Dashboard({ token }: DashboardProps) {
           <h3>Média do Chat</h3>
           <p style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#8b5cf6', margin: '10px 0' }}>⭐ {avgChatRating}</p>
         </div>
-        <div className="movie-card" style={{ padding: '20px', textAlign: 'center' }}>
+        <div 
+          className="movie-card" 
+          style={{ padding: '20px', textAlign: 'center', cursor: 'pointer', border: '2px dashed transparent', transition: '0.2s', overflow: 'hidden' }} 
+          onClick={() => setShowModal(true)}
+          title="Clique para ver o ranking completo"
+        >
           <h3>Top Resgatador</h3>
-          <p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#ec4899', margin: '15px 0' }}>👑 {topRescuer}</p>
-          {maxRescues > 0 && <span style={{ fontSize: '1rem', color: '#aaa' }}>{maxRescues} resgates</span>}
+          <p style={{ 
+            fontSize: topRescuer.length > 12 ? '1.2rem' : '1.8rem', 
+            fontWeight: 'bold', 
+            color: '#ec4899', 
+            margin: '15px 0',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            👑 {topRescuer}
+          </p>
+          {maxRescues > 0 && <span style={{ fontSize: '0.9rem', color: '#aaa', textDecoration: 'underline' }}>Ver ranking completo</span>}
         </div>
       </div>
+
+      {/* Modal de Ranking de Resgatadores */}
+      {showModal && (
+        <div onClick={() => setShowModal(false)} className="modal-overlay">
+          <div onClick={(e) => e.stopPropagation()} className="modal-content" style={{ maxWidth: '400px', maxHeight: '80vh', overflowY: 'auto' }}>
+            <button onClick={() => setShowModal(false)} className="close-btn">&times;</button>
+            <h2 style={{ marginBottom: '20px', color: 'var(--primary)', textAlign: 'center' }}>🏆 Ranking de Resgates</h2>
+            {ranking.length > 0 ? (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {ranking.map((user, index) => (
+                  <li key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 10px', borderBottom: '1px solid var(--input-border)', fontWeight: user.count === maxRescues ? 'bold' : 'normal', color: user.count === maxRescues ? '#ec4899' : 'inherit' }}>
+                    <span>{index + 1}º {user.name}</span>
+                    <span>{user.count} filme(s)</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p style={{ textAlign: 'center' }}>Nenhum resgate registrado ainda.</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

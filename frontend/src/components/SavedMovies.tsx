@@ -199,14 +199,24 @@ export default function SavedMovies({ token }: SavedMoviesProps) {
             Já assisti
           </label>
 
-          <div className="info-text">
-            <span>👤 Resgatado:</span> 
-            <strong>{movie.requestedBy || 'Ninguém'}</strong>
-          </div>
-          <div className="info-text" style={{ marginBottom: '15px' }}>
-            <span>📅 Agendado:</span> 
-            <strong>{movie.watchDate ? new Date(movie.watchDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'Não definido'}</strong>
-          </div>
+          <label className="input-label">
+            Resgatado por:
+            <input
+              type="text"
+              placeholder="Ninguém"
+              value={movie.requestedBy || ''}
+              onChange={(e) => setSavedMovies(prev => prev.map(m => m.id === movie.id ? { ...m, requestedBy: e.target.value } : m))}
+              onBlur={(e) => handleUpdateMovie(movie.id, { requestedBy: e.target.value })}
+            />
+          </label>
+          <label className="input-label" style={{ marginBottom: '15px' }}>
+            Agendado para:
+            <input
+              type="date"
+              value={movie.watchDate ? new Date(movie.watchDate).toISOString().split('T')[0] : ''}
+              onChange={(e) => handleUpdateMovie(movie.id, { watchDate: e.target.value ? new Date(e.target.value).toISOString() : null })}
+            />
+          </label>
 
           <div className="ratings-container">
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
