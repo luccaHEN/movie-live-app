@@ -9,6 +9,7 @@ interface SavedMoviesProps {
 
 export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
   const [savedMovies, setSavedMovies] = useState<any[]>([]);
+  const [drafts, setDrafts] = useState<Record<number, any>>({});
   const [selectedMovieDetails, setSelectedMovieDetails] = useState<any | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'WATCHED' | 'UNWATCHED'>('ALL');
@@ -17,6 +18,8 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const moviesPerPage = 35;
+  const [draggedMovieId, setDraggedMovieId] = useState<number | null>(null);
+  const [dragOverMovieId, setDragOverMovieId] = useState<number | null>(null);
 
   const fetchSavedMovies = async () => {
     setIsLoading(true);
@@ -126,6 +129,71 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
     return `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
   };
 
+  // Lógica de Drag & Drop para reordenar filmes no mesmo dia
+  const handleDrop = async (targetId: number) => {
+    if (!draggedMovieId || draggedMovieId === targetId) {
+      setDraggedMovieId(null);
+      setDragOverMovieId(null);
+      return;
+    }
+
+    const draggedMovie = savedMovies.find(m => m.id === draggedMovieId);
+    const targetMovie = savedMovies.find(m => m.id === targetId);
+    if (!draggedMovie || !targetMovie) return;
+
+    const baseDateString = targetMovie.watchDate
+      ? new Date(targetMovie.watchDate).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    const moviesOnSameDay = filteredMovies.filter(m => {
+      const mDate = m.watchDate ? new Date(m.watchDate).toISOString().split('T')[0] : null;
+      return mDate === baseDateString;
+    });
+
+    const otherMovies = moviesOnSameDay.filter(m => m.id !== draggedMovieId);
+    const targetIndex = otherMovies.findIndex(m => m.id === targetId);
+    const originalDraggedIndex = filteredMovies.findIndex(m => m.id === draggedMovieId);
+    const originalTargetIndex = filteredMovies.findIndex(m => m.id === targetId);
+
+    let insertIndex = targetIndex;
+    if (targetIndex !== -1) {
+      insertIndex = originalDraggedIndex > originalTargetIndex ? targetIndex : targetIndex + 1;
+    } else {
+      insertIndex = otherMovies.length;
+    }
+
+    otherMovies.splice(insertIndex, 0, draggedMovie);
+
+    const changedMovies: any[] = [];
+    const newSavedMovies = savedMovies.map(m => {
+      const dayIndex = otherMovies.findIndex(dayMovie => dayMovie.id === m.id);
+      if (dayIndex !== -1) {
+        const newDateObj = new Date(`${baseDateString}T00:00:00.000Z`);
+        newDateObj.setSeconds(dayIndex);
+        const newDateStr = newDateObj.toISOString();
+        if (m.watchDate !== newDateStr) {
+          changedMovies.push({ id: m.id, watchDate: newDateStr });
+          return { ...m, watchDate: newDateStr };
+        }
+      }
+      return m;
+    });
+
+    setSavedMovies(newSavedMovies);
+    setDraggedMovieId(null);
+    setDragOverMovieId(null);
+
+    for (const update of changedMovies) {
+      try {
+        await api.put(`/movies/${update.id}`, { watchDate: update.watchDate }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (error) {
+        console.error('Erro ao reordenar filme', error);
+      }
+    }
+  };
+
   // Filtra e ordena os filmes pela data de agendamento (mais antigos primeiro)
   const filteredMovies = savedMovies
     .filter(m => selectedMonth === 'ALL' || (m.watchDate ? String(m.watchDate).substring(0, 7) : 'none') === selectedMonth)
@@ -172,6 +240,20 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
             background-color: var(--danger, #dc2626) !important;
             border-color: var(--danger, #dc2626) !important;
             color: #fff !important;
+          }
+          .drag-over {
+            border: 2px dashed var(--primary) !important;
+            transform: scale(1.02);
+            transition: all 0.2s;
+          }
+          .dragging {
+            opacity: 0.4;
+          }
+          .draggable-card {
+            cursor: grab;
+          }
+          .draggable-card:active {
+            cursor: grabbing;
           }
         `}
       </style>
@@ -243,7 +325,19 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
       ) : (
         <div className="movies-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', width: '100%', maxWidth: '100%', gap: '20px', marginTop: '0' }}>
           {currentMovies.length === 0 ? <p>Nenhum filme encontrado para este filtro.</p> : currentMovies.map(movie => (
-          <div key={movie.id} className="movie-card" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+          <div 
+            key={movie.id} 
+            className={`movie-card ${sortBy === 'DATE' ? 'draggable-card' : ''} ${draggedMovieId === movie.id ? 'dragging' : ''} ${dragOverMovieId === movie.id ? 'drag-over' : ''}`} 
+            style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}
+            draggable={sortBy === 'DATE'}
+            onDragStart={() => setDraggedMovieId(movie.id)}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (dragOverMovieId !== movie.id) setDragOverMovieId(movie.id);
+            }}
+            onDrop={() => handleDrop(movie.id)}
+            onDragEnd={() => { setDraggedMovieId(null); setDragOverMovieId(null); }}
+          >
           {/* Capa e título agora são clicáveis */}
           <div onClick={() => handleShowDetails(movie.tmdbId)} className="movie-card-header" title="Ver Detalhes">
             <p className="movie-title">{movie.title}</p>
@@ -266,9 +360,16 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
               <input
                 type="text"
                 placeholder="Ninguém"
-                value={movie.requestedBy || ''}
-                onChange={(e) => setSavedMovies(prev => prev.map(m => m.id === movie.id ? { ...m, requestedBy: e.target.value } : m))}
-                onBlur={(e) => handleUpdateMovie(movie.id, { requestedBy: e.target.value })}
+                value={drafts[movie.id]?.requestedBy ?? movie.requestedBy ?? ''}
+                onChange={(e) => setDrafts(prev => ({ ...prev, [movie.id]: { ...prev[movie.id], requestedBy: e.target.value } }))}
+                onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                onBlur={(e) => {
+                  if (drafts[movie.id]?.requestedBy !== undefined) {
+                    handleUpdateMovie(movie.id, { requestedBy: e.target.value });
+                    // Limpa o rascunho após salvar para sincronizar com os dados reais
+                    setDrafts(prev => ({ ...prev, [movie.id]: { ...prev[movie.id], requestedBy: undefined } }));
+                  }
+                }}
               />
             </label>
           )}
@@ -290,16 +391,20 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
                 Minha Nota:
                 <input 
                   type="number" min="0" max="10" step="0.01" 
-                  value={movie.streamerRating ?? ''} 
-                  onChange={(e) => setSavedMovies(prev => prev.map(m => m.id === movie.id ? { ...m, streamerRating: e.target.value.replace(',', '.') } : m))} 
+                  value={drafts[movie.id]?.streamerRating ?? movie.streamerRating ?? ''} 
+                  onChange={(e) => setDrafts(prev => ({ ...prev, [movie.id]: { ...prev[movie.id], streamerRating: e.target.value.replace(',', '.') } }))} 
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                   onBlur={(e) => {
-                    let val = e.target.value ? parseFloat(e.target.value.replace(',', '.')) : null;
-                    if (val !== null) {
-                      if (val < 0) val = 0;
-                      if (val > 10) val = 10;
-                      val = parseFloat(val.toFixed(2)); // Limita a 2 casas decimais no máximo
+                    if (drafts[movie.id]?.streamerRating !== undefined) {
+                      let val = e.target.value ? parseFloat(e.target.value.replace(',', '.')) : null;
+                      if (val !== null) {
+                        if (val < 0) val = 0;
+                        if (val > 10) val = 10;
+                        val = parseFloat(val.toFixed(2)); // Limita a 2 casas decimais no máximo
+                      }
+                      handleUpdateMovie(movie.id, { streamerRating: val });
+                      setDrafts(prev => ({ ...prev, [movie.id]: { ...prev[movie.id], streamerRating: undefined } }));
                     }
-                    handleUpdateMovie(movie.id, { streamerRating: val });
                   }} 
                 />
               </label>
@@ -308,16 +413,20 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
                   Nota Chat:
                   <input 
                     type="number" min="0" max="10" step="0.01" 
-                    value={movie.chatRating ?? ''} 
-                    onChange={(e) => setSavedMovies(prev => prev.map(m => m.id === movie.id ? { ...m, chatRating: e.target.value.replace(',', '.') } : m))} 
+                    value={drafts[movie.id]?.chatRating ?? movie.chatRating ?? ''} 
+                    onChange={(e) => setDrafts(prev => ({ ...prev, [movie.id]: { ...prev[movie.id], chatRating: e.target.value.replace(',', '.') } }))} 
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                     onBlur={(e) => {
-                      let val = e.target.value ? parseFloat(e.target.value.replace(',', '.')) : null;
-                      if (val !== null) {
-                        if (val < 0) val = 0;
-                        if (val > 10) val = 10;
-                        val = parseFloat(val.toFixed(2)); // Limita a 2 casas decimais no máximo
+                      if (drafts[movie.id]?.chatRating !== undefined) {
+                        let val = e.target.value ? parseFloat(e.target.value.replace(',', '.')) : null;
+                        if (val !== null) {
+                          if (val < 0) val = 0;
+                          if (val > 10) val = 10;
+                          val = parseFloat(val.toFixed(2)); // Limita a 2 casas decimais no máximo
+                        }
+                        handleUpdateMovie(movie.id, { chatRating: val });
+                        setDrafts(prev => ({ ...prev, [movie.id]: { ...prev[movie.id], chatRating: undefined } }));
                       }
-                      handleUpdateMovie(movie.id, { chatRating: val });
                     }} 
                   />
                 </label>
