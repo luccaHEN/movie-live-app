@@ -179,8 +179,10 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
             }
           }
 
+          // Divide o tempo do filme pelo número de gêneros para a conta fechar exatamente com o Tempo de Tela
+          const timePerGenre = runtime / genres.length;
           genres.forEach((g: string) => {
-            genreTime[g] = (genreTime[g] || 0) + runtime;
+            genreTime[g] = (genreTime[g] || 0) + timePerGenre;
           });
         }));
       }
