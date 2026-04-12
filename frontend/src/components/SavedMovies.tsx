@@ -232,6 +232,12 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
   const currentMovies = filteredMovies.slice(indexOfFirstMovie, indexOfLastMovie);
   const totalPages = Math.ceil(filteredMovies.length / moviesPerPage);
 
+  // Cálculos para o Resumo
+  const totalFiltered = filteredMovies.length;
+  const watchedFiltered = filteredMovies.filter(m => m.watched).length;
+  const unwatchedFiltered = totalFiltered - watchedFiltered;
+  const progressPercentage = totalFiltered > 0 ? Math.round((watchedFiltered / totalFiltered) * 100) : 0;
+
   return (
     <div className="saved-movies-container" style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', width: '100%', gap: '30px' }}>
       <style>
@@ -259,7 +265,7 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
       </style>
       
       {/* Painel lateral de Filtros */}
-      <div style={{ display: 'flex', flexDirection: 'column', width: '250px', minWidth: '250px', flexShrink: 0, gap: '20px', position: 'sticky', top: '20px', zIndex: 10, backgroundColor: 'var(--bg-color)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', width: '250px', minWidth: '250px', flexShrink: 0, gap: '20px', position: 'sticky', top: '20px', maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', zIndex: 10, backgroundColor: 'var(--bg-color)', paddingRight: '5px' }}>
         
         {/* Barra de Pesquisa */}
         <div style={{ width: '100%' }}>
@@ -284,10 +290,16 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
         {savedMovies.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--primary)' }}>Mês</h3>
-            <button className={selectedMonth === 'ALL' ? 'btn-primary' : 'btn-secondary'} onClick={() => setSelectedMonth('ALL')}>Todos os Filmes</button>
-            {uniqueMonthKeys.map(key => (
-              <button key={key} className={selectedMonth === key ? 'btn-primary' : 'btn-secondary'} onClick={() => setSelectedMonth(key)}>{getMonthLabel(key)}</button>
-            ))}
+            <select 
+              value={selectedMonth} 
+              onChange={e => setSelectedMonth(e.target.value)}
+              style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--input-border)', backgroundColor: 'var(--card-bg)', color: 'var(--text-color)', outline: 'none' }}
+            >
+              <option value="ALL">Todos os Filmes</option>
+              {uniqueMonthKeys.map(key => (
+                <option key={key} value={key}>{getMonthLabel(key)}</option>
+              ))}
+            </select>
           </div>
         )}
 
@@ -305,6 +317,32 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
           </select>
         </div>
 
+        {/* Resumo da Lista (Estatísticas) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '15px', backgroundColor: 'var(--card-bg)', borderRadius: '8px', border: '1px solid var(--input-border)' }}>
+          <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem', color: 'var(--primary)', textAlign: 'center' }}>📊 Resumo da Lista</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+            <span style={{ color: '#ccc' }}>Total Listado:</span>
+            <span style={{ fontWeight: 'bold' }}>{totalFiltered}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+            <span style={{ color: '#ccc' }}>Já Assistidos:</span>
+            <span style={{ fontWeight: 'bold', color: '#10b981' }}>{watchedFiltered}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+            <span style={{ color: '#ccc' }}>Para Assistir:</span>
+            <span style={{ fontWeight: 'bold', color: '#f59e0b' }}>{unwatchedFiltered}</span>
+          </div>
+      <div style={{ marginTop: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
+          <span style={{ color: '#aaa' }}>Progresso</span>
+          <span style={{ fontWeight: 'bold', color: '#10b981' }}>{progressPercentage}%</span>
+        </div>
+        <div style={{ width: '100%', height: '8px', backgroundColor: '#333', borderRadius: '4px', overflow: 'hidden' }}>
+          <div style={{ width: `${progressPercentage}%`, height: '100%', backgroundColor: '#10b981', transition: 'width 0.5s ease-in-out' }}></div>
+        </div>
+      </div>
+        </div>
+
         {/* Botão de Limpar Filtros */}
         {(rescuerFilter !== '' || statusFilter !== 'ALL' || selectedMonth !== 'ALL' || sortBy !== 'DATE') && (
           <button 
@@ -319,6 +357,10 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
 
       {/* Conteúdo Principal (Grid de Filmes e Paginação) */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
+
+        <h2 style={{ marginTop: 0, marginBottom: '20px', color: 'var(--primary)', width: '100%', borderBottom: '1px solid var(--input-border)', paddingBottom: '10px' }}>
+          {selectedMonth === 'ALL' ? 'Todos os Filmes' : getMonthLabel(selectedMonth)}
+        </h2>
 
       {isLoading ? (
         <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '1.2rem' }}>Carregando filmes... 🍿</p>

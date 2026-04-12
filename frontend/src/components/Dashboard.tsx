@@ -22,6 +22,7 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showUpcomingModal, setShowUpcomingModal] = useState(false);
+  const [showGenreModal, setShowGenreModal] = useState(false);
   const [showRoulette, setShowRoulette] = useState(false);
   const [drawnMovie, setDrawnMovie] = useState<any | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -36,6 +37,8 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
   const [isDrawScreen, setIsDrawScreen] = useState(false);
   const [caseTrack, setCaseTrack] = useState<any[]>([]);
   const [caseOffset, setCaseOffset] = useState(0);
+  const [genreRanking, setGenreRanking] = useState<{genre: string, hours: string}[]>([]);
+  const [isLoadingGenres, setIsLoadingGenres] = useState(false);
 
   const fetchMovies = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
@@ -54,6 +57,10 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
   useEffect(() => {
     fetchMovies();
   }, [fetchMovies]);
+
+  useEffect(() => {
+    setGenreRanking([]);
+  }, [movies]);
 
   // Efeito de Debounce para buscar filmes automaticamente enquanto digita
   useEffect(() => {
@@ -136,6 +143,59 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
   
   const chartData = Object.entries(moviesPerMonth).sort(([a], [b]) => a.localeCompare(b)).slice(-6) as [string, number][]; // Pega no máximo os últimos 6 meses
   const maxMoviesInMonth = chartData.length > 0 ? Math.max(...chartData.map(d => d[1])) : 1;
+
+  const handleOpenGenreModal = async () => {
+    setShowGenreModal(true);
+    
+    if (genreRanking.length > 0 || isLoadingGenres) return;
+
+    setIsLoadingGenres(true);
+    try {
+      const genreTime: Record<string, number> = {};
+      
+      const chunkSize = 5;
+      for (let i = 0; i < watchedMoviesList.length; i += chunkSize) {
+        const chunk = watchedMoviesList.slice(i, i + chunkSize);
+        
+        await Promise.all(chunk.map(async (m) => {
+          let runtime = m.runtime || 105;
+          let genres = ['Desconhecido'];
+
+          // Se o backend tiver retornado o gênero salvo
+          if (m.genre && m.genre !== 'N/A' && m.genre !== 'Desconhecido') {
+            genres = m.genre.split(', ');
+          } else if (m.tmdbId) {
+            // Filmes antigos não têm gênero salvo, busca no TMDB
+            try {
+              const res = await api.get(`/movies/tmdb/${m.tmdbId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              if (res.data.runtime) runtime = res.data.runtime;
+              if (res.data.genres && res.data.genres.length > 0) {
+                genres = res.data.genres.map((g: any) => g.name);
+              }
+            } catch (e) {
+              console.error(`Erro ao buscar detalhes do filme ${m.tmdbId}`);
+            }
+          }
+
+          genres.forEach((g: string) => {
+            genreTime[g] = (genreTime[g] || 0) + runtime;
+          });
+        }));
+      }
+
+      const ranking = Object.entries(genreTime)
+        .map(([genre, minutes]) => ({ genre, hours: (minutes / 60).toFixed(1) }))
+        .sort((a, b) => parseFloat(b.hours) - parseFloat(a.hours));
+
+      setGenreRanking(ranking);
+    } catch (error) {
+      toast.error('Erro ao calcular horas por gênero.');
+    } finally {
+      setIsLoadingGenres(false);
+    }
+  };
 
   const handleCopyPublicLink = () => {
     // Pega o username do usuário dinamicamente e remove espaços indesejados
@@ -353,7 +413,12 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
               <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#8b5cf6', margin: '0' }}>⭐ {avgChatRating}</p>
             </div>
           )}
-          <div className="movie-card" style={{ padding: '15px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div 
+            className="movie-card" 
+            style={{ padding: '15px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', cursor: 'pointer', border: '2px dashed transparent', transition: '0.2s' }}
+            onClick={handleOpenGenreModal}
+            title="Clique para ver horas por gênero"
+          >
             <h3 style={{ fontSize: '1rem', margin: '0 0 5px 0', color: '#ccc' }}>Tempo de Tela</h3>
             <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#10b981', margin: '0' }}>{totalWatchHours}h</p>
             <span style={{ fontSize: '0.75rem', color: '#aaa', marginTop: '3px' }}>≈ {totalWatchDays} dias</span>
@@ -484,6 +549,36 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
               </ul>
             ) : (
               <p style={{ textAlign: 'center' }}>Nenhum filme agendado no momento.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Tempo por Gênero */}
+      {showGenreModal && (
+        <div onClick={() => setShowGenreModal(false)} className="modal-overlay">
+          <div onClick={(e) => e.stopPropagation()} className="modal-content" style={{ maxWidth: '400px', maxHeight: '80vh', overflowY: 'auto' }}>
+            <button onClick={() => setShowGenreModal(false)} className="close-btn">&times;</button>
+            <h2 style={{ marginBottom: '20px', color: 'var(--primary)', textAlign: 'center' }}>⏱️ Tempo por Gênero</h2>
+            
+            {isLoadingGenres ? (
+              <div style={{ textAlign: 'center', padding: '30px 10px' }}>
+                <p style={{ fontSize: '1.1rem', margin: '0 0 10px 0' }}>Analisando seus filmes... 🍿</p>
+                <span style={{ fontSize: '0.85rem', color: '#aaa' }}>(Isso pode levar alguns segundos para buscar informações de filmes antigos)</span>
+              </div>
+            ) : genreRanking.length > 0 ? (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {genreRanking.map((item, index) => (
+                  <li key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 10px', borderBottom: '1px solid var(--input-border)' }}>
+                    <span style={{ fontWeight: index === 0 ? 'bold' : 'normal', color: index === 0 ? '#10b981' : 'inherit' }}>
+                      {index + 1}º {item.genre}
+                    </span>
+                    <span>{item.hours}h</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p style={{ textAlign: 'center' }}>Nenhum dado disponível.</p>
             )}
           </div>
         </div>

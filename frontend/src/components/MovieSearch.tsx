@@ -2,6 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
+const TMDB_GENRES: Record<number, string> = {
+  28: "Ação", 12: "Aventura", 16: "Animação", 35: "Comédia", 80: "Crime",
+  99: "Documentário", 18: "Drama", 10751: "Família", 14: "Fantasia", 36: "História",
+  27: "Terror", 10402: "Música", 9648: "Mistério", 10749: "Romance", 878: "Ficção científica",
+  10770: "Cinema TV", 53: "Thriller", 10752: "Guerra", 37: "Faroeste"
+};
+
 interface MovieSearchProps {
   token: string;
   streamerMode: boolean;
@@ -9,6 +16,7 @@ interface MovieSearchProps {
 
 export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedGenre, setSelectedGenre] = useState('');
   const [movies, setMovies] = useState<any[]>([]);
   const [selectedMovieDetails, setSelectedMovieDetails] = useState<any | null>(null);
   const [savedMovieIds, setSavedMovieIds] = useState<Set<number>>(new Set());
@@ -151,6 +159,7 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
 
   const handleClearSearch = () => {
     setSearchQuery('');
+    setSelectedGenre('');
     setPage(1);
     setHasMore(true);
     fetchPopular(1); // Volta a mostrar os filmes populares
@@ -172,12 +181,14 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
       }
     }
 
+    const movieGenres = movie.genre_ids ? movie.genre_ids.map((id: number) => TMDB_GENRES[id]).filter(Boolean).join(', ') : "Desconhecido";
+
     // Monta o pacote de dados básico do filme
     const payload: any = {
       title: movie.title, 
       tmdbId: movie.id, 
       poster: movie.poster_path, 
-      genre: "N/A",
+      genre: movieGenres || "Desconhecido",
     };
 
     if (streamerMode) {
@@ -215,17 +226,25 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
+  const displayedMovies = selectedGenre ? movies.filter(m => m.genre_ids && m.genre_ids.includes(parseInt(selectedGenre))) : movies;
+
   return (
     <>
-      <form onSubmit={handleSearch} className="search-form">
+      <form onSubmit={handleSearch} className="search-form" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         <input type="text" placeholder="Ex: Batman..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ width: '400px' }} />
+        <select value={selectedGenre} onChange={e => setSelectedGenre(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--input-border)', backgroundColor: '#1a1a1a', color: '#fff', outline: 'none' }}>
+          <option value="">Todos os Gêneros</option>
+          {Object.entries(TMDB_GENRES).map(([id, name]) => (
+            <option key={id} value={id}>{name}</option>
+          ))}
+        </select>
         <button type="button" className="btn-secondary" onClick={handleClearSearch}>Limpar / Populares</button>
       </form>
       
         <div className="movies-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', width: '100%', maxWidth: '100%', gap: '20px' }}>
-          {movies.length === 0 && searchQuery.trim() !== '' && !isLoading ? (
-            <p style={{ gridColumn: '1 / -1', textAlign: 'center', marginTop: '20px', color: '#aaa' }}>Nenhum filme encontrado com esse nome 😥</p>
-          ) : movies.map(movie => (
+          {displayedMovies.length === 0 && (searchQuery.trim() !== '' || selectedGenre !== '') && !isLoading ? (
+            <p style={{ gridColumn: '1 / -1', textAlign: 'center', marginTop: '20px', color: '#aaa' }}>Nenhum filme encontrado com esse filtro 😥</p>
+          ) : displayedMovies.map(movie => (
           <div key={movie.id} className="movie-card" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
             {/* Capa e título agora são clicáveis */}
             <div onClick={() => handleShowDetails(movie.id)} className="movie-card-header" title="Ver Detalhes">
