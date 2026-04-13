@@ -14,7 +14,7 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'WATCHED' | 'UNWATCHED'>('ALL');
   const [rescuerFilter, setRescuerFilter] = useState<string>('');
-  const [sortBy, setSortBy] = useState<'DATE' | 'RATING' | 'ALPHA'>('DATE');
+  const [sortBy, setSortBy] = useState<'DATE' | 'RATING_DESC' | 'RATING_ASC' | 'ALPHA'>('DATE');
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const moviesPerPage = 35;
@@ -209,12 +209,26 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
       const title = (m.title || '').toLowerCase();
       return requestedBy.includes(searchTerm) || title.includes(searchTerm);
     })
+    .filter(m => {
+      // Se estiver ordenando por nota, remove os filmes que não têm nenhuma avaliação
+      if (sortBy === 'RATING_DESC' || sortBy === 'RATING_ASC') {
+        return (m.streamerRating != null && m.streamerRating > 0) || (m.chatRating != null && m.chatRating > 0);
+      }
+      return true;
+    })
     .sort((a, b) => {
       if (sortBy === 'ALPHA') {
         return (a.title || '').localeCompare(b.title || '');
       }
-      if (sortBy === 'RATING') {
-        return (b.streamerRating || 0) - (a.streamerRating || 0);
+      if (sortBy === 'RATING_DESC') {
+        const ratingA = Math.max(a.streamerRating || 0, a.chatRating || 0);
+        const ratingB = Math.max(b.streamerRating || 0, b.chatRating || 0);
+        return ratingB - ratingA;
+      }
+      if (sortBy === 'RATING_ASC') {
+        const ratingA = Math.max(a.streamerRating || 0, a.chatRating || 0);
+        const ratingB = Math.max(b.streamerRating || 0, b.chatRating || 0);
+        return ratingA - ratingB;
       }
       // Se os dois não têm data, mantém a ordem original
       if (!a.watchDate && !b.watchDate) return 0;
@@ -312,7 +326,8 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
             style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--input-border)', backgroundColor: 'var(--card-bg)', color: 'var(--text-color)', outline: 'none' }}
           >
             <option value="DATE">📅 Data de Agendamento</option>
-            <option value="RATING">⭐ Minha Nota</option>
+            <option value="RATING_DESC">⭐ Maior Nota</option>
+            <option value="RATING_ASC">⭐ Menor Nota</option>
             <option value="ALPHA">🔤 Ordem Alfabética</option>
           </select>
         </div>

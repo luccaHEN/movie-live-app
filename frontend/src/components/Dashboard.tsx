@@ -39,6 +39,12 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
   const [caseOffset, setCaseOffset] = useState(0);
   const [genreRanking, setGenreRanking] = useState<{genre: string, hours: string}[]>([]);
   const [isLoadingGenres, setIsLoadingGenres] = useState(false);
+  const [champions, setChampions] = useState<Record<string, any>>(() => {
+    const saved = localStorage.getItem('monthlyChampions');
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [championModalMonth, setChampionModalMonth] = useState<string | null>(null);
+  const [expandedChart, setExpandedChart] = useState(false);
 
   const fetchMovies = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
@@ -61,6 +67,16 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
   useEffect(() => {
     setGenreRanking([]);
   }, [movies]);
+
+  // Escuta se o campeão do mês foi atualizado via Sidebar
+  useEffect(() => {
+    const handleChampionsUpdate = () => {
+      const saved = localStorage.getItem('monthlyChampions');
+      if (saved) setChampions(JSON.parse(saved));
+    };
+    window.addEventListener('championsUpdated', handleChampionsUpdate);
+    return () => window.removeEventListener('championsUpdated', handleChampionsUpdate);
+  }, []);
 
   // Efeito de Debounce para buscar filmes automaticamente enquanto digita
   useEffect(() => {
@@ -118,11 +134,12 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
     .map(([name, count]) => ({ name, count: count as number }))
     .sort((a, b) => b.count - a.count);
 
+  const rankingForTop = ranking.filter(r => r.name.toLowerCase() !== 'chat');
   let topRescuer = 'N/A';
   let maxRescues = 0;
-  if (ranking.length > 0) {
-    maxRescues = ranking[0].count;
-    const tiedUsers = ranking.filter(r => r.count === maxRescues);
+  if (rankingForTop.length > 0) {
+    maxRescues = rankingForTop[0].count;
+    const tiedUsers = rankingForTop.filter(r => r.count === maxRescues);
     topRescuer = tiedUsers.length === 1 ? tiedUsers[0].name : 'Empate!';
   }
 
@@ -141,7 +158,7 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
     return acc;
   }, {} as Record<string, number>);
   
-  const chartData = Object.entries(moviesPerMonth).sort(([a], [b]) => a.localeCompare(b)).slice(-6) as [string, number][]; // Pega no máximo os últimos 6 meses
+  const chartData = Object.entries(moviesPerMonth).sort(([a], [b]) => a.localeCompare(b)).slice(expandedChart ? -12 : -6) as [string, number][]; // Pega 6 ou 12 meses
   const maxMoviesInMonth = chartData.length > 0 ? Math.max(...chartData.map(d => d[1])) : 1;
 
   const handleOpenGenreModal = async () => {
@@ -432,11 +449,26 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
           
           {/* Gráfico de Barras: Filmes Assistidos por Mês */}
           {chartData.length > 0 && (
-            <div className="movie-card" style={{ width: '100%', padding: '25px', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
-              <h3 style={{ textAlign: 'center', margin: '0 0 20px 0', color: 'var(--primary)' }}>📈 Filmes Assistidos (Últimos Meses)</h3>
+            <div 
+              className="movie-card" 
+              style={{ width: '100%', padding: '25px', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', cursor: 'pointer', transition: '0.3s' }}
+              onClick={() => setExpandedChart(!expandedChart)}
+              title={expandedChart ? "Clique para recolher o gráfico" : "Clique para ver o ano todo"}
+            >
+              <h3 style={{ textAlign: 'center', margin: '0 0 20px 0', color: 'var(--primary)' }}>📈 Filmes Assistidos ({expandedChart ? 'Últimos 12 Meses' : 'Últimos 6 Meses'})</h3>
               <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', minHeight: '150px', gap: '10px' }}>
                 {chartData.map(([month, count]) => (
                   <div key={month} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                    <span 
+                      style={{ cursor: 'pointer', fontSize: '1.2rem', marginBottom: '5px', opacity: champions[month] ? 1 : 0.3, transition: '0.2s' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setChampionModalMonth(month);
+                      }}
+                      title={champions[month] ? `Campeão: ${champions[month].title}` : "Escolher Melhor do Mês"}
+                    >
+                      👑
+                    </span>
                     <span style={{ marginBottom: '5px', fontWeight: 'bold' }}>{count}</span>
                     <div style={{ 
                       width: '100%', maxWidth: '50px', height: `${(count / maxMoviesInMonth) * 130}px`, 
@@ -472,9 +504,9 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
                 overflow: 'hidden',
                 textOverflow: 'ellipsis'
               }}>
-                👑 {topRescuer}
+                {topRescuer}
               </p>
-              {maxRescues > 0 && <span style={{ fontSize: '0.9rem', color: '#aaa', textDecoration: 'underline' }}>Ver ranking completo</span>}
+              {ranking.length > 0 && <span style={{ fontSize: '0.9rem', color: '#aaa', textDecoration: 'underline' }}>Ver ranking completo</span>}
             </div>
 
             {/* Próximos da Fila */}
@@ -510,20 +542,61 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
       {/* Modal de Ranking de Resgatadores */}
       {showModal && (
         <div onClick={() => setShowModal(false)} className="modal-overlay">
-          <div onClick={(e) => e.stopPropagation()} className="modal-content" style={{ maxWidth: '400px', maxHeight: '80vh', overflowY: 'auto' }}>
+          <div onClick={(e) => e.stopPropagation()} className="modal-content" style={{ maxWidth: '500px', maxHeight: '80vh', overflowY: 'auto' }}>
             <button onClick={() => setShowModal(false)} className="close-btn">&times;</button>
-            <h2 style={{ marginBottom: '20px', color: 'var(--primary)', textAlign: 'center' }}>🏆 Ranking de Resgates</h2>
-            {ranking.length > 0 ? (
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {ranking.map((user, index) => (
-                  <li key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 10px', borderBottom: '1px solid var(--input-border)', fontWeight: user.count === maxRescues ? 'bold' : 'normal', color: user.count === maxRescues ? '#ec4899' : 'inherit' }}>
-                    <span>{index + 1}º {user.name}</span>
-                    <span>{user.count} filme(s)</span>
-                  </li>
-                ))}
-              </ul>
+            <h2 style={{ marginBottom: '25px', color: 'var(--primary)', textAlign: 'center' }}>🏆 Ranking de Resgates</h2>
+            
+            {rankingForTop.length > 0 ? (
+              <>
+                {/* Pódio Top 3 */}
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: '10px', marginTop: '30px', marginBottom: '30px', height: '160px', padding: '0 20px' }}>
+                  {/* 2º Lugar */}
+                  {rankingForTop[1] && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, position: 'relative' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px', textAlign: 'center' }} title={rankingForTop[1].name}>{rankingForTop[1].name}</span>
+                      <span style={{ fontSize: '0.8rem', color: '#aaa', marginBottom: '5px' }}>{rankingForTop[1].count} resgates</span>
+                      <div style={{ width: '100%', height: '80px', backgroundColor: '#94a3b8', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', color: '#fff', fontWeight: 'bold', fontSize: '2rem', borderRadius: '8px 8px 0 0', paddingTop: '10px', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.2)' }}>2</div>
+                    </div>
+                  )}
+                  {/* 1º Lugar */}
+                  {rankingForTop[0] && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1.2, position: 'relative', zIndex: 2 }}>
+                      <span style={{ fontSize: '1rem', fontWeight: 'bold', color: '#f59e0b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px', textAlign: 'center' }} title={rankingForTop[0].name}>{rankingForTop[0].name}</span>
+                      <span style={{ fontSize: '0.85rem', color: '#aaa', marginBottom: '5px' }}>{rankingForTop[0].count} resgates</span>
+                      <div style={{ width: '100%', height: '110px', backgroundColor: '#f59e0b', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', color: '#fff', fontWeight: 'bold', fontSize: '2.5rem', borderRadius: '8px 8px 0 0', paddingTop: '10px', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.2)' }}>1</div>
+                    </div>
+                  )}
+                  {/* 3º Lugar */}
+                  {rankingForTop[2] && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, position: 'relative' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px', textAlign: 'center' }} title={rankingForTop[2].name}>{rankingForTop[2].name}</span>
+                      <span style={{ fontSize: '0.8rem', color: '#aaa', marginBottom: '5px' }}>{rankingForTop[2].count} resgates</span>
+                      <div style={{ width: '100%', height: '60px', backgroundColor: '#b45309', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', color: '#fff', fontWeight: 'bold', fontSize: '1.8rem', borderRadius: '8px 8px 0 0', paddingTop: '10px', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.2)' }}>3</div>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ borderTop: '1px solid var(--input-border)', margin: '0 -20px' }}></div>
+                
+                <ul style={{ listStyle: 'none', padding: '10px 0 0 0', margin: 0 }}>
+                  {ranking.map((user, index) => {
+                    const isChat = user.name.toLowerCase() === 'chat';
+                    const position = rankingForTop.findIndex(r => r.name === user.name) + 1;
+                    const isTop1 = !isChat && maxRescues > 0 && user.count === maxRescues;
+                    return (
+                      <li key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 10px', borderBottom: '1px solid var(--input-border)', fontWeight: isTop1 ? 'bold' : 'normal', color: isTop1 ? '#ec4899' : 'inherit' }}>
+                        <span>
+                          {isChat ? '💬 ' : position === 1 ? '🥇 ' : position === 2 ? '🥈 ' : position === 3 ? '🥉 ' : `${position}º `}
+                          {user.name}
+                        </span>
+                        <span>{user.count} filme(s)</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
             ) : (
-              <p style={{ textAlign: 'center' }}>Nenhum resgate registrado ainda.</p>
+              <p style={{ textAlign: 'center', marginTop: '20px' }}>Nenhum resgate registrado ainda.</p>
             )}
           </div>
         </div>
@@ -582,6 +655,59 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
             ) : (
               <p style={{ textAlign: 'center' }}>Nenhum dado disponível.</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Escolha do Campeão do Mês */}
+      {championModalMonth && (
+        <div onClick={() => setChampionModalMonth(null)} className="modal-overlay">
+          <div onClick={(e) => e.stopPropagation()} className="modal-content" style={{ maxWidth: '500px', maxHeight: '80vh', overflowY: 'auto' }}>
+            <button onClick={() => setChampionModalMonth(null)} className="close-btn">&times;</button>
+            <h2 style={{ marginBottom: '20px', color: 'var(--primary)', textAlign: 'center' }}>
+              👑 Melhor do Mês ({championModalMonth.split('-')[1]}/{championModalMonth.split('-')[0]})
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {movies
+                .filter(m => m.watched && m.watchDate && m.watchDate.startsWith(championModalMonth) && m.streamerRating === 10)
+                .sort((a, b) => (b.streamerRating || 0) - (a.streamerRating || 0))
+                .map(m => (
+                  <div 
+                    key={m.id} 
+                    onClick={() => {
+                      if (champions[championModalMonth]?.id === m.id) {
+                        const newChampions = { ...champions };
+                        delete newChampions[championModalMonth];
+                        setChampions(newChampions);
+                        localStorage.setItem('monthlyChampions', JSON.stringify(newChampions));
+                        setChampionModalMonth(null);
+                        toast.success("Campeão do mês removido!");
+                      } else {
+                        const newChampions = { ...champions, [championModalMonth]: m };
+                        setChampions(newChampions);
+                        localStorage.setItem('monthlyChampions', JSON.stringify(newChampions));
+                        setChampionModalMonth(null);
+                        toast.success(`"${m.title}" definido como campeão do mês!`);
+                      }
+                    }}
+                    style={{ display: 'flex', gap: '15px', padding: '10px', backgroundColor: champions[championModalMonth]?.id === m.id ? 'rgba(236, 72, 153, 0.2)' : 'var(--card-bg)', border: champions[championModalMonth]?.id === m.id ? '1px solid #ec4899' : '1px solid var(--input-border)', borderRadius: '8px', cursor: 'pointer', alignItems: 'center' }}
+                  >
+                    {m.poster ? (
+                      <img src={`https://image.tmdb.org/t/p/w92${m.poster}`} alt={m.title} style={{ width: '40px', borderRadius: '4px' }} />
+                    ) : (
+                      <div style={{ width: '40px', height: '60px', backgroundColor: '#333', borderRadius: '4px' }}></div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                      <span style={{ fontWeight: 'bold' }}>{m.title}</span>
+                      <span style={{ fontSize: '0.85rem', color: '#aaa' }}>Minha Nota: ⭐ {m.streamerRating || 'N/A'}</span>
+                    </div>
+                    {champions[championModalMonth]?.id === m.id && <span style={{ fontSize: '1.5rem' }}>👑</span>}
+                  </div>
+              ))}
+              {movies.filter(m => m.watched && m.watchDate && m.watchDate.startsWith(championModalMonth) && m.streamerRating === 10).length === 0 && (
+                <p style={{ textAlign: 'center', color: '#aaa' }}>Nenhum filme avaliado com nota 10 neste mês.</p>
+              )}
+            </div>
           </div>
         </div>
       )}

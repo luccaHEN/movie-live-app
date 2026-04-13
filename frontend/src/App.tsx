@@ -18,8 +18,8 @@ export default function App() {
     const saved = localStorage.getItem('streamerMode');
     return saved !== null ? saved === 'true' : true;
   });
-  const [stats, setStats] = useState<{ bestMovies: any[], topRescuer: string | null, topRescuerList?: { name: string, count: number }[] }>({ bestMovies: [], topRescuer: null });
-  const [showTieModal, setShowTieModal] = useState(false);
+  const [stats, setStats] = useState<{ bestMovies: any[], topRescuer: string | null, monthRanking?: { name: string, count: number }[] }>({ bestMovies: [], topRescuer: null });
+  const [showTopRescuersModal, setShowTopRescuersModal] = useState(false);
   const [showBestMoviesModal, setShowBestMoviesModal] = useState(false);
   const [champion, setChampion] = useState<any>(null);
 
@@ -47,14 +47,8 @@ export default function App() {
           const currentMonth = new Date().toISOString().substring(0, 7); // Ex: "2024-04"
           const monthMovies = res.data.filter((m: any) => (m.watchDate ? String(m.watchDate).substring(0, 7) : 'none') === currentMonth);
           
-          let bestMovies: any[] = [];
-          let topRescuer = null;
-
-          const watchedWithRatings = monthMovies.filter((m: any) => m.watched && m.streamerRating != null);
-          if (watchedWithRatings.length > 0) {
-            const maxRating = Math.max(...watchedWithRatings.map((m: any) => m.streamerRating));
-            bestMovies = watchedWithRatings.filter((m: any) => m.streamerRating === maxRating);
-          }
+          // Apenas filmes com nota 10 podem ser escolhidos como o Melhor Filme do Mês
+          const bestMovies = monthMovies.filter((m: any) => m.watched && m.streamerRating === 10);
 
           const rescuerCounts: Record<string, number> = {};
           monthMovies.forEach((m: any) => {
@@ -64,16 +58,19 @@ export default function App() {
             }
           });
           
-          const rescuers = Object.keys(rescuerCounts);
-          let topRescuerList: { name: string, count: number }[] = [];
-          if (rescuers.length > 0) {
-            const maxCount = Math.max(...Object.values(rescuerCounts));
-            const tops = rescuers.filter(r => rescuerCounts[r] === maxCount);
-            topRescuer = tops.length > 1 ? 'Empate!' : tops[0];
-            topRescuerList = tops.map(name => ({ name, count: maxCount }));
+          const monthRanking = Object.entries(rescuerCounts)
+            .filter(([name]) => name.toLowerCase() !== 'chat')
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count);
+
+          let topRescuer = 'N/A';
+          if (monthRanking.length > 0) {
+            const maxCount = monthRanking[0].count;
+            const tops = monthRanking.filter(r => r.count === maxCount);
+            topRescuer = tops.length > 1 ? 'Empate!' : tops[0].name;
           }
 
-          setStats({ bestMovies, topRescuer, topRescuerList });
+          setStats({ bestMovies, topRescuer, monthRanking });
         })
         .catch(err => console.error('Erro ao carregar estatísticas', err));
     }
@@ -126,11 +123,10 @@ export default function App() {
                 <div 
                   className="hof-card gold"
                   onClick={() => {
-                    if (stats.bestMovies.length === 1) {
-                      setChampion(stats.bestMovies[0]);
-                    } else {
-                      setChampion(null);
-                    }
+                    const currentMonth = new Date().toISOString().substring(0, 7);
+                    const saved = localStorage.getItem('monthlyChampions');
+                    const champs = saved ? JSON.parse(saved) : {};
+                    setChampion(champs[currentMonth] || null);
                     setShowBestMoviesModal(true);
                   }}
                   style={{ cursor: 'pointer', transition: '0.2s' }}
@@ -146,16 +142,16 @@ export default function App() {
               {stats.topRescuer && (
             <div 
               className="hof-card silver"
-              onClick={() => { if (stats.topRescuer === 'Empate!') setShowTieModal(true); }}
-              style={{ cursor: stats.topRescuer === 'Empate!' ? 'pointer' : 'default', transition: '0.2s' }}
-              title={stats.topRescuer === 'Empate!' ? 'Clique para ver quem empatou' : ''}
+              onClick={() => setShowTopRescuersModal(true)}
+              style={{ cursor: 'pointer', transition: '0.2s' }}
+              title="Clique para ver o pódio do mês"
             >
                   <span>🚀 Mais Resgates</span>
               <strong style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {stats.topRescuer} {stats.topRescuer !== 'Empate!' && stats.topRescuerList?.[0] ? `(${stats.topRescuerList[0].count})` : ''}
+                {stats.topRescuer} {stats.topRescuer !== 'Empate!' && stats.monthRanking?.[0] ? `(${stats.monthRanking[0].count})` : ''}
               </strong>
               {stats.topRescuer === 'Empate!' ? (
-                <small style={{ textDecoration: 'underline' }}>{stats.topRescuerList?.length} empatados ({stats.topRescuerList?.[0]?.count} resgates)</small>
+                <small style={{ textDecoration: 'underline' }}>{stats.monthRanking?.filter(r => r.count === stats.monthRanking?.[0]?.count).length} empatados ({stats.monthRanking?.[0]?.count} resg.)</small>
               ) : (
                 <small>Recompensa: +1 Filme</small>
               )}
@@ -211,7 +207,7 @@ export default function App() {
               <>
                 <h2 style={{ marginBottom: '10px', color: '#fbbf24' }}>⭐ Desempate do Melhor Filme</h2>
                 <p style={{ marginBottom: '20px', color: '#aaa', fontSize: '0.9rem' }}>
-                  Temos {stats.bestMovies.length} filmes empatados com a nota {stats.bestMovies[0]?.streamerRating}! Escolha o grande campeão:
+                  Temos {stats.bestMovies.length} filmes com nota máxima (10)! Escolha o grande campeão:
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                   {stats.bestMovies.map((movie: any) => (
@@ -227,10 +223,24 @@ export default function App() {
                       </div>
                       <button 
                         className="btn-primary" 
-                        style={{ padding: '8px 12px', fontSize: '0.9rem', width: 'auto', whiteSpace: 'nowrap', backgroundColor: '#fbbf24', color: '#000', border: 'none' }}
-                        onClick={() => setChampion(movie)}
+                        style={{ padding: '8px 12px', fontSize: '0.9rem', width: 'auto', whiteSpace: 'nowrap', backgroundColor: champion?.id === movie.id ? '#dc2626' : '#fbbf24', color: champion?.id === movie.id ? '#fff' : '#000', border: 'none' }}
+                        onClick={() => {
+                          const currentMonth = new Date().toISOString().substring(0, 7);
+                          const saved = localStorage.getItem('monthlyChampions');
+                          const champs = saved ? JSON.parse(saved) : {};
+                          
+                          if (champion?.id === movie.id) {
+                            delete champs[currentMonth];
+                            setChampion(null);
+                          } else {
+                            champs[currentMonth] = movie;
+                            setChampion(movie);
+                          }
+                          localStorage.setItem('monthlyChampions', JSON.stringify(champs));
+                          window.dispatchEvent(new Event('championsUpdated'));
+                        }}
                       >
-                        Coroar 👑
+                        {champion?.id === movie.id ? 'Remover ❌' : 'Coroar 👑'}
                       </button>
                     </div>
                   ))}
@@ -255,22 +265,43 @@ export default function App() {
         </div>
       )}
 
-      {/* Modal de Empate do Mês na Sidebar */}
-      {showTieModal && (
-        <div onClick={() => setShowTieModal(false)} className="modal-overlay">
-          <div onClick={(e) => e.stopPropagation()} className="modal-content" style={{ maxWidth: '350px', maxHeight: '80vh', overflowY: 'auto' }}>
-            <button onClick={() => setShowTieModal(false)} className="close-btn">&times;</button>
-            <h2 style={{ marginBottom: '10px', color: 'var(--primary)', textAlign: 'center' }}>🤝 Empate do Mês</h2>
-            <p style={{ textAlign: 'center', marginBottom: '20px', color: '#aaa', fontSize: '0.9rem' }}>
-              Estes usuários estão empatados em 1º lugar com <strong>{stats.topRescuerList?.[0]?.count}</strong> resgate(s) neste mês:
-            </p>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {stats.topRescuerList?.map((user, index) => (
-                <li key={index} style={{ padding: '12px 10px', borderBottom: '1px solid var(--input-border)', fontWeight: 'bold', textAlign: 'center' }}>
-                  {user.name}
-                </li>
-              ))}
-            </ul>
+      {/* Modal do Pódio do Mês na Sidebar */}
+      {showTopRescuersModal && (
+        <div onClick={() => setShowTopRescuersModal(false)} className="modal-overlay">
+          <div onClick={(e) => e.stopPropagation()} className="modal-content" style={{ maxWidth: '500px', maxHeight: '80vh', overflowY: 'auto' }}>
+            <button onClick={() => setShowTopRescuersModal(false)} className="close-btn">&times;</button>
+            <h2 style={{ marginBottom: '25px', color: 'var(--primary)', textAlign: 'center' }}>🏆 Pódio do Mês</h2>
+            
+            {stats.monthRanking && stats.monthRanking.length > 0 ? (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: '10px', marginTop: '30px', marginBottom: '30px', height: '160px', padding: '0 20px' }}>
+                {/* 2º Lugar */}
+                {stats.monthRanking[1] && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, position: 'relative' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px', textAlign: 'center' }} title={stats.monthRanking[1].name}>{stats.monthRanking[1].name}</span>
+                    <span style={{ fontSize: '0.8rem', color: '#aaa', marginBottom: '5px' }}>{stats.monthRanking[1].count} resg.</span>
+                    <div style={{ width: '100%', height: '80px', backgroundColor: '#94a3b8', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', color: '#fff', fontWeight: 'bold', fontSize: '2rem', borderRadius: '8px 8px 0 0', paddingTop: '10px', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.2)' }}>2</div>
+                  </div>
+                )}
+                {/* 1º Lugar */}
+                {stats.monthRanking[0] && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1.2, position: 'relative', zIndex: 2 }}>
+                    <span style={{ fontSize: '1rem', fontWeight: 'bold', color: '#f59e0b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px', textAlign: 'center' }} title={stats.monthRanking[0].name}>{stats.monthRanking[0].name}</span>
+                    <span style={{ fontSize: '0.85rem', color: '#aaa', marginBottom: '5px' }}>{stats.monthRanking[0].count} resg.</span>
+                    <div style={{ width: '100%', height: '110px', backgroundColor: '#f59e0b', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', color: '#fff', fontWeight: 'bold', fontSize: '2.5rem', borderRadius: '8px 8px 0 0', paddingTop: '10px', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.2)' }}>1</div>
+                  </div>
+                )}
+                {/* 3º Lugar */}
+                {stats.monthRanking[2] && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, position: 'relative' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px', textAlign: 'center' }} title={stats.monthRanking[2].name}>{stats.monthRanking[2].name}</span>
+                    <span style={{ fontSize: '0.8rem', color: '#aaa', marginBottom: '5px' }}>{stats.monthRanking[2].count} resg.</span>
+                    <div style={{ width: '100%', height: '60px', backgroundColor: '#b45309', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', color: '#fff', fontWeight: 'bold', fontSize: '1.8rem', borderRadius: '8px 8px 0 0', paddingTop: '10px', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.2)' }}>3</div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p style={{ textAlign: 'center', color: '#aaa', marginTop: '20px' }}>Nenhum resgate neste mês ainda.</p>
+            )}
           </div>
         </div>
       )}
