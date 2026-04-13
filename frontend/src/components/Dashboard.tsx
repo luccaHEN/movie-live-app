@@ -1,15 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import confetti from 'canvas-confetti';
-
- // Instancia os áudios globalmente para carregar com a página e não ter atraso
- const tickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
- const winSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3');
- const flipSound = new Audio('https://assets.mixkit.co/active_storage/sfx/3005/3005-preview.mp3');
- tickSound.volume = 0.5;
- winSound.volume = 0.6;
- flipSound.volume = 0.6;
+import Modal from './Modal';
+import Podium from './Podium';
+import RouletteModal from './RouletteModal';
 
 interface DashboardProps {
   token: string;
@@ -24,25 +18,8 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
   const [showUpcomingModal, setShowUpcomingModal] = useState(false);
   const [showGenreModal, setShowGenreModal] = useState(false);
   const [showRoulette, setShowRoulette] = useState(false);
-  const [drawnMovie, setDrawnMovie] = useState<any | null>(null);
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [rouletteSearchQuery, setRouletteSearchQuery] = useState('');
-  const [rouletteSearchResults, setRouletteSearchResults] = useState<any[]>([]);
-  const [rouletteCandidates, setRouletteCandidates] = useState<any[]>([]);
-  const [rouletteWatchDate, setRouletteWatchDate] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [drawType, setDrawType] = useState<'FAST' | 'WHEEL' | 'CARDS'>('FAST');
-  const [wheelRotation, setWheelRotation] = useState(0);
-  const [flippedCardIndex, setFlippedCardIndex] = useState<number | null>(null);
-  const [isDrawScreen, setIsDrawScreen] = useState(false);
-  const [caseTrack, setCaseTrack] = useState<any[]>([]);
-  const [caseOffset, setCaseOffset] = useState(0);
   const [genreRanking, setGenreRanking] = useState<{genre: string, hours: string}[]>([]);
   const [isLoadingGenres, setIsLoadingGenres] = useState(false);
-  const [champions, setChampions] = useState<Record<string, any>>(() => {
-    const saved = localStorage.getItem('monthlyChampions');
-    return saved ? JSON.parse(saved) : {};
-  });
   const [championModalMonth, setChampionModalMonth] = useState<string | null>(null);
   const [expandedChart, setExpandedChart] = useState(false);
 
@@ -68,38 +45,11 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
     setGenreRanking([]);
   }, [movies]);
 
-  // Escuta se o campeão do mês foi atualizado via Sidebar
   useEffect(() => {
-    const handleChampionsUpdate = () => {
-      const saved = localStorage.getItem('monthlyChampions');
-      if (saved) setChampions(JSON.parse(saved));
-    };
-    window.addEventListener('championsUpdated', handleChampionsUpdate);
-    return () => window.removeEventListener('championsUpdated', handleChampionsUpdate);
-  }, []);
-
-  // Efeito de Debounce para buscar filmes automaticamente enquanto digita
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(async () => {
-      if (rouletteSearchQuery.trim()) {
-        setIsSearching(true);
-        try {
-          const response = await api.get(`/movies/search?query=${rouletteSearchQuery}&page=1`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          setRouletteSearchResults(response.data.filter((m: any) => m.poster_path));
-        } catch (error) {
-          toast.error("Erro ao buscar filmes.");
-        } finally {
-          setIsSearching(false);
-        }
-      } else {
-        setRouletteSearchResults([]);
-      }
-    }, 500); // Aguarda 500ms após o usuário parar de digitar
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [rouletteSearchQuery, token]);
+    const handleUpdate = () => fetchMovies(true);
+    window.addEventListener('moviesUpdated', handleUpdate);
+    return () => window.removeEventListener('moviesUpdated', handleUpdate);
+  }, [fetchMovies]);
 
   if (isLoading) {
     return <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '1.2rem' }}>Calculando estatísticas... 📊</p>;
@@ -132,7 +82,11 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
   const ranking = Object.entries(rescuerCounts)
     .filter(([name]) => name.toLowerCase() !== 'ninguém' && name !== '')
     .map(([name, count]) => ({ name, count: count as number }))
-    .sort((a, b) => b.count - a.count);
+    .sort((a, b) => {
+      if (a.name.toLowerCase() === 'chat') return 1; // Joga o Chat para o final
+      if (b.name.toLowerCase() === 'chat') return -1; // Mantém o Chat no final
+      return b.count - a.count; // Ordena os demais normalmente do maior pro menor
+    });
 
   const rankingForTop = ranking.filter(r => r.name.toLowerCase() !== 'chat');
   let topRescuer = 'N/A';
@@ -142,6 +96,14 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
     const tiedUsers = rankingForTop.filter(r => r.count === maxRescues);
     topRescuer = tiedUsers.length === 1 ? tiedUsers[0].name : 'Empate!';
   }
+
+  // Campeões salvos no banco de dados
+  const champions = movies.reduce((acc, m) => {
+    if (m.isChampion && m.watchDate) {
+      acc[String(m.watchDate).substring(0, 7)] = m;
+    }
+    return acc;
+  }, {} as Record<string, any>);
 
   // Próximos filmes agendados (Fila)
   const allUpcomingMovies = movies
@@ -223,183 +185,12 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
     toast.success('Link público copiado para a área de transferência! 🔗');
   };
 
-  // Sistema de Efeitos Sonoros (SFX)
-  const playSound = (type: 'TICK' | 'WIN' | 'FLIP') => {
-    try {
-      let audio: HTMLAudioElement | null = null;
-      if (type === 'TICK') audio = tickSound;
-      else if (type === 'WIN') audio = winSound;
-      else if (type === 'FLIP') audio = flipSound;
-
-      if (audio) {
-        audio.currentTime = 0; // Volta para o começo instantaneamente (permite cliques rápidos)
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-           playPromise.catch(() => {}); // Previne erros se o navegador bloquear autoplay
-        }
-      }
-    } catch (e) { console.error("Erro ao tocar som", e); }
-  };
-
-  // Abre a roleta no modo de seleção
-  const handleOpenRoulette = () => {
-    setRouletteCandidates([]);
-    setRouletteSearchResults([]);
-    setRouletteSearchQuery('');
-    setRouletteWatchDate('');
-    setDrawnMovie(null);
-    setWheelRotation(0);
-    setFlippedCardIndex(null);
-    setIsSpinning(false);
-    setIsDrawScreen(false);
-    setCaseTrack([]);
-    setShowRoulette(true);
-  };
-
-  // Lógica do Sorteio (Roleta)
-  const handleSpinRoulette = () => {
-    if (rouletteCandidates.length === 0) {
-      toast.error("Adicione pelo menos um filme para sortear!");
-      return;
-    }
-
-    setIsSpinning(true);
-    playSound('TICK'); // Toca o som instantaneamente para o navegador liberar o Áudio na live!
-
-    const winner = rouletteCandidates[Math.floor(Math.random() * rouletteCandidates.length)];
-
-    // Função que cria o som da catraca desacelerando suavemente!
-    const startSlowingTicks = (maxTime: number) => {
-      let delay = 50;
-      let total = 0;
-      const nextTick = () => {
-        if (total >= maxTime) return;
-        playSound('TICK');
-        total += delay;
-        delay = delay * 1.15; // Aumenta o tempo do próximo tick em 15% (desacelerando)
-        setTimeout(nextTick, delay);
-      };
-      setTimeout(nextTick, delay);
-    };
-
-    if (drawType === 'FAST') {
-      const track = [];
-      for(let i=0; i<60; i++) track.push(rouletteCandidates[Math.floor(Math.random() * rouletteCandidates.length)]);
-      track[45] = winner; // Vencedor fica na posição 45
-      setCaseTrack(track);
-      setCaseOffset(0); // Reseta a posição antes de girar
-
-      setTimeout(() => {
-         const itemWidth = 130; // 120px do card + 10px de margin/gap
-         const randomJitter = Math.floor(Math.random() * 110) - 55; // Emoção: Varia a parada raspando na borda esquerda ou direita!
-         setCaseOffset(-(45 * itemWidth) + randomJitter);
-      }, 50);
-
-      startSlowingTicks(6000);
-
-      setTimeout(() => {
-        setDrawnMovie(winner);
-        setIsSpinning(false);
-        playSound('WIN');
-        confetti({ 
-          zIndex: 9999, 
-          particleCount: 150, 
-          spread: 90, 
-          origin: { y: 0.6 },
-          colors: ['#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#3b82f6']
-        });
-      }, 6000); // 6 segundos de animação
-    } else if (drawType === 'WHEEL') {
-      const winnerIndex = rouletteCandidates.indexOf(winner);
-      const sliceAngle = 360 / rouletteCandidates.length;
-      const randomJitter = (Math.random() * sliceAngle * 0.8) - (sliceAngle * 0.4); // Emoção: não para exatamente no centro da fatia
-      const targetAngle = 360 - (winnerIndex * sliceAngle) - (sliceAngle / 2) + randomJitter;
-      // Adiciona 5 voltas completas (1800 graus) para dar o efeito de girar bastante
-      setWheelRotation(prev => prev + 1800 + targetAngle - (prev % 360));
-      
-      startSlowingTicks(4000);
-
-      setTimeout(() => {
-        setDrawnMovie(winner);
-        setIsSpinning(false);
-        playSound('WIN');
-        confetti({ 
-          zIndex: 9999, 
-          particleCount: 150, 
-          spread: 90, 
-          origin: { y: 0.6 },
-          colors: ['#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#3b82f6']
-        });
-      }, 4000); // 4s é a duração da animação CSS
-    }
-  };
-
-  // Clique manual na carta
-  const handleCardClick = (index: number) => {
-    if (isSpinning || drawnMovie) return;
-    const winner = rouletteCandidates[Math.floor(Math.random() * rouletteCandidates.length)];
-    setDrawnMovie(winner);
-    setFlippedCardIndex(index);
-    setIsSpinning(true);
-    playSound('FLIP');
-    setTimeout(() => {
-      setIsSpinning(false);
-      playSound('WIN');
-      confetti({ 
-        zIndex: 9999, 
-        particleCount: 150, 
-        spread: 90, 
-        origin: { y: 0.6 },
-        colors: ['#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#3b82f6']
-      });
-    }, 1500); // 1.5s pra carta virar
-  };
-
-  // Limpa o ganhador pra jogar de novo
-  const handleResetDraw = () => {
-    setDrawnMovie(null);
-    setCaseTrack([]);
-    setCaseOffset(0);
-    setFlippedCardIndex(null);
-  };
-
-  // Salvar o filme vencedor
-  const handleSaveDrawnMovie = async () => {
-    if (!drawnMovie) return;
-    if (streamerMode && !rouletteWatchDate) {
-      toast.error('Por favor, selecione uma data para assistir o filme.');
-      return;
-    }
-
-    const payload: any = {
-      title: drawnMovie.title,
-      tmdbId: drawnMovie.id,
-      poster: drawnMovie.poster_path,
-      genre: "N/A",
-    };
-    if (streamerMode) {
-      payload.requestedBy = 'Chat';
-      payload.watchDate = new Date(rouletteWatchDate).toISOString();
-    }
-    try {
-      await api.post('/movies', payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      toast.success(`Filme "${drawnMovie.title}" salvo com sucesso!`);
-      setShowRoulette(false);
-      setIsDrawScreen(false);
-      fetchMovies(true); // Recarrega as estatísticas de forma silenciosa
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Erro ao salvar o filme.');
-    }
-  };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: '20px', maxWidth: '1100px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '10px' }}>
         <h2 style={{ color: 'var(--primary)', margin: '0' }}>Estatísticas da Stream 📊</h2>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={handleOpenRoulette} className="btn-secondary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto', backgroundColor: '#8b5cf6', borderColor: '#8b5cf6', color: '#fff' }}>🎲 Sortear Filme</button>
+          <button onClick={() => setShowRoulette(true)} className="btn-secondary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto', backgroundColor: '#8b5cf6', borderColor: '#8b5cf6', color: '#fff' }}>🎲 Sortear Filme</button>
           {streamerMode && (
             <button onClick={handleCopyPublicLink} className="btn-primary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto' }}>🔗 Copiar Link Agenda</button>
           )}
@@ -423,7 +214,7 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
             <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#f59e0b', margin: '0' }}>{unwatchedMovies}</p>
           </div>
           <div className="movie-card" style={{ padding: '15px', textAlign: 'center' }}>
-            <h3 style={{ fontSize: '1rem', margin: '0 0 5px 0', color: '#ccc' }}>Média Streamer</h3>
+            <h3 style={{ fontSize: '1rem', margin: '0 0 5px 0', color: '#ccc' }}>{streamerMode ? 'Média Streamer' : 'Minha Média'}</h3>
             <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#3b82f6', margin: '0' }}>⭐ {avgStreamerRating}</p>
           </div>
           {streamerMode && (
@@ -540,74 +331,43 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
       </div>
 
       {/* Modal de Ranking de Resgatadores */}
-      {showModal && (
-        <div onClick={() => setShowModal(false)} className="modal-overlay">
-          <div onClick={(e) => e.stopPropagation()} className="modal-content" style={{ maxWidth: '500px', maxHeight: '80vh', overflowY: 'auto' }}>
-            <button onClick={() => setShowModal(false)} className="close-btn">&times;</button>
-            <h2 style={{ marginBottom: '25px', color: 'var(--primary)', textAlign: 'center' }}>🏆 Ranking de Resgates</h2>
-            
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)}>
+        <h2 style={{ marginBottom: '25px', color: 'var(--primary)', textAlign: 'center' }}>🏆 Ranking de Resgates</h2>
             {rankingForTop.length > 0 ? (
               <>
-                {/* Pódio Top 3 */}
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: '10px', marginTop: '30px', marginBottom: '30px', height: '160px', padding: '0 20px' }}>
-                  {/* 2º Lugar */}
-                  {rankingForTop[1] && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, position: 'relative' }}>
-                      <span style={{ fontSize: '0.9rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px', textAlign: 'center' }} title={rankingForTop[1].name}>{rankingForTop[1].name}</span>
-                      <span style={{ fontSize: '0.8rem', color: '#aaa', marginBottom: '5px' }}>{rankingForTop[1].count} resgates</span>
-                      <div style={{ width: '100%', height: '80px', backgroundColor: '#94a3b8', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', color: '#fff', fontWeight: 'bold', fontSize: '2rem', borderRadius: '8px 8px 0 0', paddingTop: '10px', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.2)' }}>2</div>
-                    </div>
-                  )}
-                  {/* 1º Lugar */}
-                  {rankingForTop[0] && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1.2, position: 'relative', zIndex: 2 }}>
-                      <span style={{ fontSize: '1rem', fontWeight: 'bold', color: '#f59e0b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px', textAlign: 'center' }} title={rankingForTop[0].name}>{rankingForTop[0].name}</span>
-                      <span style={{ fontSize: '0.85rem', color: '#aaa', marginBottom: '5px' }}>{rankingForTop[0].count} resgates</span>
-                      <div style={{ width: '100%', height: '110px', backgroundColor: '#f59e0b', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', color: '#fff', fontWeight: 'bold', fontSize: '2.5rem', borderRadius: '8px 8px 0 0', paddingTop: '10px', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.2)' }}>1</div>
-                    </div>
-                  )}
-                  {/* 3º Lugar */}
-                  {rankingForTop[2] && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, position: 'relative' }}>
-                      <span style={{ fontSize: '0.9rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px', textAlign: 'center' }} title={rankingForTop[2].name}>{rankingForTop[2].name}</span>
-                      <span style={{ fontSize: '0.8rem', color: '#aaa', marginBottom: '5px' }}>{rankingForTop[2].count} resgates</span>
-                      <div style={{ width: '100%', height: '60px', backgroundColor: '#b45309', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', color: '#fff', fontWeight: 'bold', fontSize: '1.8rem', borderRadius: '8px 8px 0 0', paddingTop: '10px', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.2)' }}>3</div>
-                    </div>
-                  )}
-                </div>
-
+                <Podium ranking={rankingForTop} />
                 <div style={{ borderTop: '1px solid var(--input-border)', margin: '0 -20px' }}></div>
                 
                 <ul style={{ listStyle: 'none', padding: '10px 0 0 0', margin: 0 }}>
-                  {ranking.map((user, index) => {
-                    const isChat = user.name.toLowerCase() === 'chat';
-                    const position = rankingForTop.findIndex(r => r.name === user.name) + 1;
-                    const isTop1 = !isChat && maxRescues > 0 && user.count === maxRescues;
-                    return (
-                      <li key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 10px', borderBottom: '1px solid var(--input-border)', fontWeight: isTop1 ? 'bold' : 'normal', color: isTop1 ? '#ec4899' : 'inherit' }}>
-                        <span>
-                          {isChat ? '💬 ' : position === 1 ? '🥇 ' : position === 2 ? '🥈 ' : position === 3 ? '🥉 ' : `${position}º `}
-                          {user.name}
-                        </span>
-                        <span>{user.count} filme(s)</span>
-                      </li>
-                    );
+                  {ranking
+                    .filter(user => {
+                      const isChat = user.name.toLowerCase() === 'chat';
+                      const position = rankingForTop.findIndex(r => r.name === user.name) + 1;
+                      return isChat || position > 3; // Remove o Top 3 da lista de baixo
+                    })
+                    .map((user, index) => {
+                      const isChat = user.name.toLowerCase() === 'chat';
+                      const position = rankingForTop.findIndex(r => r.name === user.name) + 1;
+                      return (
+                        <li key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 10px', borderBottom: '1px solid var(--input-border)' }}>
+                          <span>
+                            {isChat ? '💬 ' : `${position}º `}
+                            {user.name}
+                          </span>
+                          <span>{user.count} filme(s)</span>
+                        </li>
+                      );
                   })}
                 </ul>
               </>
             ) : (
               <p style={{ textAlign: 'center', marginTop: '20px' }}>Nenhum resgate registrado ainda.</p>
-            )}
-          </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Modal de Fila Completa */}
-      {showUpcomingModal && (
-        <div onClick={() => setShowUpcomingModal(false)} className="modal-overlay">
-          <div onClick={(e) => e.stopPropagation()} className="modal-content" style={{ maxWidth: '500px', maxHeight: '80vh', overflowY: 'auto' }}>
-            <button onClick={() => setShowUpcomingModal(false)} className="close-btn">&times;</button>
-            <h2 style={{ marginBottom: '20px', color: 'var(--primary)', textAlign: 'center' }}>🍿 Fila Completa de Filmes</h2>
+      <Modal isOpen={showUpcomingModal} onClose={() => setShowUpcomingModal(false)}>
+        <h2 style={{ marginBottom: '20px', color: 'var(--primary)', textAlign: 'center' }}>🍿 Fila Completa de Filmes</h2>
             {allUpcomingMovies.length > 0 ? (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {allUpcomingMovies.map((m, index) => (
@@ -624,18 +384,12 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
               </ul>
             ) : (
               <p style={{ textAlign: 'center' }}>Nenhum filme agendado no momento.</p>
-            )}
-          </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Modal de Tempo por Gênero */}
-      {showGenreModal && (
-        <div onClick={() => setShowGenreModal(false)} className="modal-overlay">
-          <div onClick={(e) => e.stopPropagation()} className="modal-content" style={{ maxWidth: '400px', maxHeight: '80vh', overflowY: 'auto' }}>
-            <button onClick={() => setShowGenreModal(false)} className="close-btn">&times;</button>
-            <h2 style={{ marginBottom: '20px', color: 'var(--primary)', textAlign: 'center' }}>⏱️ Tempo por Gênero</h2>
-            
+      <Modal isOpen={showGenreModal} onClose={() => setShowGenreModal(false)} maxWidth="400px">
+        <h2 style={{ marginBottom: '20px', color: 'var(--primary)', textAlign: 'center' }}>⏱️ Tempo por Gênero</h2>
             {isLoadingGenres ? (
               <div style={{ textAlign: 'center', padding: '30px 10px' }}>
                 <p style={{ fontSize: '1.1rem', margin: '0 0 10px 0' }}>Analisando seus filmes... 🍿</p>
@@ -654,301 +408,67 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
               </ul>
             ) : (
               <p style={{ textAlign: 'center' }}>Nenhum dado disponível.</p>
-            )}
-          </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Modal de Escolha do Campeão do Mês */}
-      {championModalMonth && (
-        <div onClick={() => setChampionModalMonth(null)} className="modal-overlay">
-          <div onClick={(e) => e.stopPropagation()} className="modal-content" style={{ maxWidth: '500px', maxHeight: '80vh', overflowY: 'auto' }}>
-            <button onClick={() => setChampionModalMonth(null)} className="close-btn">&times;</button>
-            <h2 style={{ marginBottom: '20px', color: 'var(--primary)', textAlign: 'center' }}>
-              👑 Melhor do Mês ({championModalMonth.split('-')[1]}/{championModalMonth.split('-')[0]})
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {movies
-                .filter(m => m.watched && m.watchDate && m.watchDate.startsWith(championModalMonth) && m.streamerRating === 10)
-                .sort((a, b) => (b.streamerRating || 0) - (a.streamerRating || 0))
-                .map(m => (
-                  <div 
-                    key={m.id} 
-                    onClick={() => {
-                      if (champions[championModalMonth]?.id === m.id) {
-                        const newChampions = { ...champions };
-                        delete newChampions[championModalMonth];
-                        setChampions(newChampions);
-                        localStorage.setItem('monthlyChampions', JSON.stringify(newChampions));
-                        setChampionModalMonth(null);
-                        toast.success("Campeão do mês removido!");
-                      } else {
-                        const newChampions = { ...champions, [championModalMonth]: m };
-                        setChampions(newChampions);
-                        localStorage.setItem('monthlyChampions', JSON.stringify(newChampions));
-                        setChampionModalMonth(null);
-                        toast.success(`"${m.title}" definido como campeão do mês!`);
-                      }
-                    }}
-                    style={{ display: 'flex', gap: '15px', padding: '10px', backgroundColor: champions[championModalMonth]?.id === m.id ? 'rgba(236, 72, 153, 0.2)' : 'var(--card-bg)', border: champions[championModalMonth]?.id === m.id ? '1px solid #ec4899' : '1px solid var(--input-border)', borderRadius: '8px', cursor: 'pointer', alignItems: 'center' }}
-                  >
-                    {m.poster ? (
-                      <img src={`https://image.tmdb.org/t/p/w92${m.poster}`} alt={m.title} style={{ width: '40px', borderRadius: '4px' }} />
-                    ) : (
-                      <div style={{ width: '40px', height: '60px', backgroundColor: '#333', borderRadius: '4px' }}></div>
-                    )}
-                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                      <span style={{ fontWeight: 'bold' }}>{m.title}</span>
-                      <span style={{ fontSize: '0.85rem', color: '#aaa' }}>Minha Nota: ⭐ {m.streamerRating || 'N/A'}</span>
+      <Modal isOpen={!!championModalMonth} onClose={() => setChampionModalMonth(null)}>
+        <h2 style={{ marginBottom: '20px', color: 'var(--primary)', textAlign: 'center' }}>
+          👑 Melhor do Mês ({championModalMonth?.split('-')[1]}/{championModalMonth?.split('-')[0]})
+        </h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {(() => {
+                const monthMovies = movies.filter(m => m.watched && m.watchDate && m.watchDate.startsWith(championModalMonth!));
+                let candidates = monthMovies.filter(m => m.streamerRating === 10);
+                if (candidates.length === 0) {
+                  candidates = monthMovies.filter(m => m.streamerRating === 9);
+                }
+                
+                if (candidates.length === 0) {
+                  return <p style={{ textAlign: 'center', color: '#aaa' }}>Nenhum filme avaliado com nota 9 ou 10 neste mês.</p>;
+                }
+
+                return candidates.sort((a, b) => (b.streamerRating || 0) - (a.streamerRating || 0)).map(m => (
+                    <div 
+                      key={m.id} 
+                      onClick={async () => {
+                        try {
+                          if (champions[championModalMonth!]?.id === m.id) {
+                            await api.put(`/movies/${m.id}`, { isChampion: false }, { headers: { Authorization: `Bearer ${token}` } });
+                            toast.success("Campeão do mês removido!");
+                          } else {
+                            if (champions[championModalMonth!]) {
+                              await api.put(`/movies/${champions[championModalMonth!].id}`, { isChampion: false }, { headers: { Authorization: `Bearer ${token}` } });
+                            }
+                            await api.put(`/movies/${m.id}`, { isChampion: true }, { headers: { Authorization: `Bearer ${token}` } });
+                            toast.success(`"${m.title}" definido como campeão do mês!`);
+                          }
+                          setChampionModalMonth(null);
+                          fetchMovies(true);
+                          window.dispatchEvent(new Event('moviesUpdated'));
+                        } catch (e) {
+                          toast.error("Erro ao atualizar o campeão.");
+                        }
+                      }}
+                      style={{ display: 'flex', gap: '15px', padding: '10px', backgroundColor: champions[championModalMonth!]?.id === m.id ? 'rgba(236, 72, 153, 0.2)' : 'var(--card-bg)', border: champions[championModalMonth!]?.id === m.id ? '1px solid #ec4899' : '1px solid var(--input-border)', borderRadius: '8px', cursor: 'pointer', alignItems: 'center' }}
+                    >
+                      {m.poster ? (
+                        <img src={`https://image.tmdb.org/t/p/w92${m.poster}`} alt={m.title} style={{ width: '40px', borderRadius: '4px' }} />
+                      ) : (
+                        <div style={{ width: '40px', height: '60px', backgroundColor: '#333', borderRadius: '4px' }}></div>
+                      )}
+                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                        <span style={{ fontWeight: 'bold' }}>{m.title}</span>
+                        <span style={{ fontSize: '0.85rem', color: '#aaa' }}>Minha Nota: ⭐ {m.streamerRating || 'N/A'}</span>
+                      </div>
+                      {champions[championModalMonth!]?.id === m.id && <span style={{ fontSize: '1.5rem' }}>👑</span>}
                     </div>
-                    {champions[championModalMonth]?.id === m.id && <span style={{ fontSize: '1.5rem' }}>👑</span>}
-                  </div>
-              ))}
-              {movies.filter(m => m.watched && m.watchDate && m.watchDate.startsWith(championModalMonth) && m.streamerRating === 10).length === 0 && (
-                <p style={{ textAlign: 'center', color: '#aaa' }}>Nenhum filme avaliado com nota 10 neste mês.</p>
-              )}
-            </div>
-          </div>
+                ));
+              })()}
         </div>
-      )}
+      </Modal>
 
-      {/* Modal da Roleta de Filmes */}
-      {showRoulette && (
-        <div className="modal-overlay">
-          <style>
-            {`
-              .case-opening-container { width: 100%; height: 200px; overflow: hidden; position: relative; background: #1a1a1a; border-radius: 8px; border: 2px solid var(--primary); box-shadow: inset 0 0 20px rgba(0,0,0,0.8); }
-              .case-opening-track { display: flex; height: 100%; align-items: center; gap: 10px; padding-left: calc(50% - 60px); }
-              .case-opening-item { width: 120px; height: 170px; flex-shrink: 0; border-radius: 6px; overflow: hidden; background: #333; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #444; box-sizing: border-box; }
-              .case-opening-item img { width: 100%; height: 100%; object-fit: cover; }
-              .case-opening-marker { position: absolute; top: 0; bottom: 0; left: 50%; width: 4px; background: #ec4899; transform: translateX(-50%); z-index: 10; box-shadow: 0 0 15px #ec4899; }
-              .card-container { perspective: 1000px; cursor: pointer; width: 120px; height: 180px; }
-              .card-inner { width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; position: relative; }
-              .card-inner.flipped { transform: rotateY(180deg); }
-              .card-front, .card-back { width: 100%; height: 100%; position: absolute; backface-visibility: hidden; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-              .card-front { background: repeating-linear-gradient(45deg, #3b82f6, #3b82f6 10px, #1e3a8a 10px, #1e3a8a 20px); border: 2px solid #fff; font-size: 3rem; color: #fff; }
-              .card-back { background-color: #222; transform: rotateY(180deg); overflow: hidden; border: 2px solid var(--primary); }
-              .wheel-pointer { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 25px solid #fff; z-index: 10; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
-            `}
-          </style>
-          <div onClick={(e) => e.stopPropagation()} className="modal-content" style={{ maxWidth: isDrawScreen && drawType === 'FAST' ? '800px' : '500px', maxHeight: '90vh', textAlign: 'center', overflowX: 'hidden', overflowY: 'auto', transition: 'max-width 0.3s', position: 'relative' }}>
-            {!isSpinning && <button onClick={() => setShowRoulette(false)} className="close-btn">&times;</button>}
-            
-            {!isSpinning && isDrawScreen && (
-              <button 
-                onClick={() => { setIsDrawScreen(false); handleResetDraw(); }} 
-                style={{ position: 'absolute', top: '18px', left: '15px', background: 'transparent', border: 'none', color: '#aaa', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', padding: 0 }}
-                title="Voltar para seleção"
-              >
-                ⬅️ Voltar
-              </button>
-            )}
-
-            <h2 style={{ marginBottom: '20px', color: 'var(--primary)' }}>🎲 Roleta de Filmes</h2>
-            
-            {!isDrawScreen ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
-                    <input
-                      type="text"
-                      placeholder="Buscar filme no TMDB..."
-                      value={rouletteSearchQuery}
-                      onChange={e => setRouletteSearchQuery(e.target.value)}
-                      style={{ flex: 1, paddingRight: '35px' }}
-                    />
-                    {rouletteSearchQuery && (
-                      <button 
-                        onClick={() => { setRouletteSearchQuery(''); setRouletteSearchResults([]); }}
-                        style={{ position: 'absolute', right: '10px', background: 'transparent', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: '1.5rem', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        title="Limpar busca"
-                      >
-                        &times;
-                      </button>
-                    )}
-                  </div>
-                  {isSearching && <span style={{ fontSize: '0.85rem', color: '#aaa', width: '50px' }}>Buscando...</span>}
-                </div>
-
-                {rouletteSearchResults.filter(m => !rouletteCandidates.some(c => c.id === m.id)).length > 0 && (
-                  <div style={{ maxHeight: '150px', overflowY: 'auto', textAlign: 'left', border: '1px solid var(--input-border)', borderRadius: '8px', padding: '5px', backgroundColor: 'rgba(0,0,0,0.2)' }}>
-                    {rouletteSearchResults.filter(m => !rouletteCandidates.some(c => c.id === m.id)).map(m => {
-                      const existingMovie = movies.find(saved => saved.tmdbId === m.id);
-                      return (
-                      <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 5px', borderBottom: '1px solid #333' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <img src={`https://image.tmdb.org/t/p/w92${m.poster_path}`} alt={m.title} style={{ width: '30px', height: '45px', objectFit: 'cover', borderRadius: '4px' }} />
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>{m.title}</span>
-                            {existingMovie && (
-                              <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 'bold', marginTop: '2px' }}>
-                                {existingMovie.watched ? '✅ Já assistido' : '📌 Na lista'}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <button className="btn-primary" style={{ padding: '4px 10px', fontSize: '0.7rem', width: 'auto', margin: 0 }} onClick={() => {
-                          setRouletteCandidates(prev => {
-                            if (prev.find(c => c.id === m.id)) return prev; // Evita duplicatas
-                            return [...prev, m];
-                          });
-                        }}>Adicionar</button>
-                      </div>
-                    )})}
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
-                  <p style={{ margin: 0, color: '#ccc', textAlign: 'left' }}>Candidatos ({rouletteCandidates.length}):</p>
-                  {rouletteCandidates.length > 0 && (
-                    <button className="btn-danger" style={{ padding: '4px 8px', fontSize: '0.7rem', width: 'auto', margin: 0 }} onClick={() => setRouletteCandidates([])}>Limpar Lista</button>
-                  )}
-                </div>
-                <div style={{ maxHeight: '150px', overflowY: 'auto', textAlign: 'left', border: '1px solid var(--input-border)', borderRadius: '8px', padding: '5px', backgroundColor: 'rgba(0,0,0,0.2)' }}>
-                  {rouletteCandidates.length === 0 ? (
-                    <p style={{ margin: '10px', fontSize: '0.85rem', color: '#888' }}>Nenhum filme adicionado para o sorteio.</p>
-                  ) : rouletteCandidates.map((m, idx) => {
-                    const existingMovie = movies.find(saved => saved.tmdbId === m.id);
-                    return (
-                    <div key={`${m.id}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 5px', borderBottom: '1px solid #333' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <img src={`https://image.tmdb.org/t/p/w92${m.poster_path}`} alt={m.title} style={{ width: '30px', height: '45px', objectFit: 'cover', borderRadius: '4px' }} />
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>{m.title}</span>
-                          {existingMovie && (
-                            <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 'bold', marginTop: '2px' }}>
-                              {existingMovie.watched ? '✅ Já assistido' : '📌 Na lista'}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <button className="btn-danger" style={{ padding: '4px 10px', fontSize: '0.7rem', width: 'auto', margin: 0 }} onClick={() => setRouletteCandidates(prev => prev.filter((_, i) => i !== idx))}>Remover</button>
-                    </div>
-                  )})}
-                </div>
-
-                <div style={{ marginTop: '10px' }}>
-                  <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: '#ccc', textAlign: 'left' }}>Tipo de Animação:</p>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => setDrawType('FAST')} className={`btn-${drawType === 'FAST' ? 'primary' : 'secondary'}`} style={{ flex: 1, padding: '8px' }}>⚡ Rápida</button>
-                    <button onClick={() => setDrawType('WHEEL')} className={`btn-${drawType === 'WHEEL' ? 'primary' : 'secondary'}`} style={{ flex: 1, padding: '8px' }}>🎡 Roleta</button>
-                    <button onClick={() => setDrawType('CARDS')} className={`btn-${drawType === 'CARDS' ? 'primary' : 'secondary'}`} style={{ flex: 1, padding: '8px' }}>🃏 Cartas</button>
-                  </div>
-                </div>
-
-                <button onClick={() => {
-                  setIsDrawScreen(true);
-                  // "Destrava" o áudio (necessário no Safari e Chrome) forçando um play silencioso no clique do usuário
-                  [tickSound, winSound, flipSound].forEach(a => {
-                    a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
-                  });
-                }} className="btn-primary" disabled={rouletteCandidates.length === 0} style={{ marginTop: '10px', padding: '12px', fontSize: '1.1rem' }}>
-                  Ir para o Sorteio ➡️
-                </button>
-              </div>
-            ) : (
-              <>
-                {drawType === 'WHEEL' && (
-                  <div style={{ position: 'relative', width: '300px', height: '300px', margin: '20px auto' }}>
-                    <div className="wheel-pointer"></div>
-                    <div style={{ 
-                      width: '100%', height: '100%', borderRadius: '50%', border: '4px solid #fff', position: 'relative', overflow: 'hidden',
-                      background: `conic-gradient(${rouletteCandidates.map((_, i) => `${['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#ec4899', '#f43f5e'][i % 12]} ${(i * 360) / rouletteCandidates.length}deg ${((i + 1) * 360) / rouletteCandidates.length}deg`).join(', ')})`,
-                      transition: isSpinning ? 'transform 4s cubic-bezier(0.1, 0.7, 0.1, 1)' : 'none', 
-                      transform: `rotate(${wheelRotation}deg)`
-                    }}>
-                      {rouletteCandidates.map((m, i) => {
-                        const sliceAngle = 360 / rouletteCandidates.length;
-                        const rotation = (i * sliceAngle) + (sliceAngle / 2);
-                        return (
-                          <div key={i} style={{ position: 'absolute', top: '10px', left: 'calc(50% - 15px)', width: '30px', height: '140px', transformOrigin: '50% 140px', transform: `rotate(${rotation}deg)`, color: '#fff', fontWeight: 'bold', fontSize: '0.85rem', textShadow: '1px 1px 2px #000', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflow: 'hidden' }}>
-                            <span style={{ writingMode: 'vertical-rl', whiteSpace: 'nowrap' }}>
-                              {m.title.length > 16 ? m.title.substring(0, 14) + '..' : m.title}
-                            </span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {drawType === 'FAST' && (
-                  <div className="case-opening-container" style={{ margin: '20px 0' }}>
-                     <div className="case-opening-marker"></div>
-                     <div className="case-opening-track" style={{ transform: `translateX(${caseOffset}px)`, transition: isSpinning ? 'transform 6s cubic-bezier(0.05, 0.9, 0.1, 1)' : 'none' }}>
-                         {caseTrack.length > 0 ? caseTrack.map((m, i) => (
-                             <div key={i} className="case-opening-item">
-                                {m.poster_path ? <img src={`https://image.tmdb.org/t/p/w200${m.poster_path}`} alt={m.title} /> : <div style={{padding: '10px', color: '#fff'}}>{m.title}</div>}
-                             </div>
-                         )) : rouletteCandidates.map((m, i) => (
-                             <div key={i} className="case-opening-item" style={{ opacity: 0.5 }}>
-                                {m.poster_path ? <img src={`https://image.tmdb.org/t/p/w200${m.poster_path}`} alt={m.title} /> : <span style={{padding: '10px'}}>{m.title}</span>}
-                             </div>
-                         ))}
-                     </div>
-                  </div>
-                )}
-
-                {drawType === 'CARDS' && (!drawnMovie || isSpinning) && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', margin: '20px 0' }}>
-                    <h3 style={{ margin: 0, color: 'var(--primary)' }}>Escolha uma carta!</h3>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', justifyContent: 'center', maxWidth: '500px' }}>
-                      {rouletteCandidates.map((_, i) => (
-                        <div key={i} className="card-container" onClick={() => handleCardClick(i)}>
-                          <div className={`card-inner ${flippedCardIndex === i ? 'flipped' : ''}`}>
-                            <div className="card-front">❓</div>
-                            <div className="card-back">
-                              {flippedCardIndex === i && drawnMovie && (
-                                 drawnMovie.poster_path ? 
-                                   <img src={`https://image.tmdb.org/t/p/w200${drawnMovie.poster_path}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Ganhador" />
-                                 : <span style={{ color: '#fff', padding: '10px', textAlign: 'center' }}>{drawnMovie.title}</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {(!isSpinning && !drawnMovie && drawType !== 'CARDS') && (
-                  <button className="btn-primary" onClick={handleSpinRoulette} style={{ width: '100%', marginTop: '10px', padding: '12px', fontSize: '1.2rem' }}>
-                      🎰 Girar!
-                  </button>
-                )}
-
-                {!isSpinning && drawnMovie && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', marginTop: '20px', padding: '15px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.5rem', color: '#10b981' }}>🎉 Vencedor: {drawnMovie.title}</h3>
-                    {drawnMovie.poster_path && (
-                        <img src={`https://image.tmdb.org/t/p/w200${drawnMovie.poster_path}`} alt={drawnMovie.title} style={{ width: '120px', borderRadius: '8px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }} />
-                    )}
-                    
-                    {streamerMode && (
-                      <div style={{ width: '100%', textAlign: 'left', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <p style={{ margin: 0, color: '#ec4899', fontWeight: 'bold' }}>👑 Resgatado por: Chat</p>
-                        <label className="input-label" style={{ margin: 0 }}>
-                          Agendar para:
-                          <input type="date" value={rouletteWatchDate} onChange={(e) => setRouletteWatchDate(e.target.value)} style={{ marginTop: '5px' }} />
-                        </label>
-                      </div>
-                    )}
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', marginTop: '10px' }}>
-                      <button onClick={handleSaveDrawnMovie} className="btn-success" style={{ width: '100%' }}>
-                        Salvar nos Meus Filmes
-                      </button>
-                      <button onClick={handleResetDraw} className="btn-primary" style={{ width: '100%' }}>
-                        Girar Novamente
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      <RouletteModal isOpen={showRoulette} onClose={() => setShowRoulette(false)} token={token} streamerMode={streamerMode} fetchMovies={fetchMovies} savedMovies={movies} />
     </div>
   );
 }

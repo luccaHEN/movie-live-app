@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import MovieDetailsModal from './MovieDetailsModal';
 
 interface SavedMoviesProps {
   token: string;
@@ -107,12 +108,6 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
     } catch (error) {
       toast.error("Erro ao buscar detalhes do filme.");
     }
-  };
-
-  const formatRuntime = (minutes: number) => {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
   // Extrai as chaves únicas de Ano e Mês (ex: "2024-04")
@@ -520,27 +515,7 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
       </div>
 
       {/* Modal Flutuante com os Detalhes do Filme */}
-      {selectedMovieDetails && (
-        <div onClick={() => setSelectedMovieDetails(null)} className="modal-overlay">
-          <div onClick={(e) => e.stopPropagation()} className="modal-content">
-            <button onClick={() => setSelectedMovieDetails(null)} className="close-btn">&times;</button>
-            <h2>{selectedMovieDetails.title}</h2>
-            <p style={{ margin: '5px 0' }}><strong>Lançamento:</strong> {selectedMovieDetails.release_date ? new Date(selectedMovieDetails.release_date).getFullYear() : 'N/A'}</p>
-            <p style={{ margin: '5px 0' }}><strong>Duração:</strong> {selectedMovieDetails.runtime ? formatRuntime(selectedMovieDetails.runtime) : 'N/A'}</p>
-            <p style={{ margin: '5px 0' }}><strong>Gêneros:</strong> {selectedMovieDetails.genres?.map((g: any) => g.name).join(', ')}</p>
-            <p style={{ margin: '5px 0' }}><strong>Nota TMDB:</strong> {selectedMovieDetails.vote_average ? `${selectedMovieDetails.vote_average.toFixed(1)} / 10` : 'N/A'}</p>
-            <p style={{ marginTop: '15px', lineHeight: '1.5' }}><strong>Sinopse:</strong><br/>{selectedMovieDetails.overview || 'Nenhuma sinopse disponível para este filme.'}</p>
-            
-            <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'center' }}>
-              <a href={`https://www.themoviedb.org/movie/${selectedMovieDetails.id}/watch`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', width: '100%' }}>
-                <button className="btn-primary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '1.1rem', padding: '12px' }}>
-                  ▶️ Onde Assistir (JustWatch)
-                </button>
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
+      <MovieDetailsModal movie={selectedMovieDetails} onClose={() => setSelectedMovieDetails(null)} />
     </div>
   );
 }

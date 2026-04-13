@@ -79,7 +79,7 @@ export class MovieController {
 
   async update(req: Request, res: Response): Promise<Response | any> {
     const { id } = req.params;
-    const { watchDate, streamerRating, chatRating, watched, requestedBy } = req.body;
+    const { watchDate, streamerRating, chatRating, watched, requestedBy, isChampion } = req.body;
     const userId = (req as any).userId;
 
     try {
@@ -95,11 +95,12 @@ export class MovieController {
       const updatedMovie = await prisma.movie.update({
         where: { id: movieId },
         data: {
-          watchDate: watchDate ? new Date(watchDate) : undefined,
+          watchDate: watchDate !== undefined ? (watchDate ? new Date(watchDate) : null) : undefined,
           streamerRating,
           chatRating,
           watched,
           requestedBy,
+          isChampion,
         }
       });
       return res.json(updatedMovie);
