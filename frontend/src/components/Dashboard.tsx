@@ -588,7 +588,7 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
 
       {/* Modal da Roleta de Filmes */}
       {showRoulette && (
-        <div onClick={() => !isSpinning && setShowRoulette(false)} className="modal-overlay">
+        <div className="modal-overlay">
           <style>
             {`
               .case-opening-container { width: 100%; height: 200px; overflow: hidden; position: relative; background: #1a1a1a; border-radius: 8px; border: 2px solid var(--primary); box-shadow: inset 0 0 20px rgba(0,0,0,0.8); }
@@ -644,9 +644,9 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
                   {isSearching && <span style={{ fontSize: '0.85rem', color: '#aaa', width: '50px' }}>Buscando...</span>}
                 </div>
 
-                {rouletteSearchResults.length > 0 && (
+                {rouletteSearchResults.filter(m => !rouletteCandidates.some(c => c.id === m.id)).length > 0 && (
                   <div style={{ maxHeight: '150px', overflowY: 'auto', textAlign: 'left', border: '1px solid var(--input-border)', borderRadius: '8px', padding: '5px', backgroundColor: 'rgba(0,0,0,0.2)' }}>
-                    {rouletteSearchResults.map(m => {
+                    {rouletteSearchResults.filter(m => !rouletteCandidates.some(c => c.id === m.id)).map(m => {
                       const existingMovie = movies.find(saved => saved.tmdbId === m.id);
                       return (
                       <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 5px', borderBottom: '1px solid #333' }}>
