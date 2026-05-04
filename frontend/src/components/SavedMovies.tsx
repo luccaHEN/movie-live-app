@@ -47,7 +47,7 @@ const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, so
       {streamerMode && (
         <label className="input-label">
           Resgatado por:
-          <input type="text" placeholder="Ninguém" value={requestedBy} onChange={(e) => setRequestedBy(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={(e) => { if (requestedBy !== (movie.requestedBy || '')) onUpdate(movie.id, { requestedBy: requestedBy.trim() || null }); }} />
+          <input type="text" placeholder="Ninguém" value={requestedBy} onChange={(e) => setRequestedBy(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={() => { if (requestedBy !== (movie.requestedBy || '')) onUpdate(movie.id, { requestedBy: requestedBy.trim() || null }); }} />
         </label>
       )}
       
@@ -62,7 +62,7 @@ const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, so
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
           <label className="input-label" style={{ width: streamerMode ? '50%' : '100%' }}>
             Minha Nota:
-            <input type="number" min="0" max="10" step="0.01" value={streamerRating} onChange={(e) => setStreamerRating(e.target.value.replace(',', '.'))} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={(e) => {
+            <input type="number" min="0" max="10" step="0.01" value={streamerRating} onChange={(e) => setStreamerRating(e.target.value.replace(',', '.'))} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={() => {
                 if (streamerRating !== (movie.streamerRating ?? '')) {
                   let val = streamerRating ? parseFloat(String(streamerRating).replace(',', '.')) : null;
                   if (val !== null) { val = Math.max(0, Math.min(10, parseFloat(val.toFixed(2)))); }
@@ -73,7 +73,7 @@ const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, so
           {streamerMode && (
             <label className="input-label" style={{ width: '50%' }}>
               Nota Chat:
-              <input type="number" min="0" max="10" step="0.01" value={chatRating} onChange={(e) => setChatRating(e.target.value.replace(',', '.'))} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={(e) => {
+              <input type="number" min="0" max="10" step="0.01" value={chatRating} onChange={(e) => setChatRating(e.target.value.replace(',', '.'))} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={() => {
                   if (chatRating !== (movie.chatRating ?? '')) {
                     let val = chatRating ? parseFloat(String(chatRating).replace(',', '.')) : null;
                     if (val !== null) { val = Math.max(0, Math.min(10, parseFloat(val.toFixed(2)))); }

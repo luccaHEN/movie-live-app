@@ -12,7 +12,7 @@ interface DashboardProps {
   user?: any; // Recebe o usuário atual para verificação de permissões
 }
 
-export default function Dashboard({ token, username, streamerMode, user }: DashboardProps) {
+export default function Dashboard({ token, username, streamerMode }: DashboardProps) {
   const [statsData, setStatsData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
