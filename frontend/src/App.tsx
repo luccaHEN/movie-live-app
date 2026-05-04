@@ -45,40 +45,12 @@ export default function App() {
         .catch(err => console.error('Erro ao carregar perfil', err));
 
       const fetchStats = () => {
-        api.get('/movies', { headers: { Authorization: `Bearer ${token}` } })
+        api.get('/movies/stats', { headers: { Authorization: `Bearer ${token}` } })
           .then(res => {
-            const currentMonth = new Date().toISOString().substring(0, 7); // Ex: "2024-04"
-            const monthMovies = res.data.filter((m: any) => (m.watchDate ? String(m.watchDate).substring(0, 7) : 'none') === currentMonth);
-            
-            let bestMovies = monthMovies.filter((m: any) => m.watched && m.streamerRating === 10);
-            if (bestMovies.length === 0) {
-              bestMovies = monthMovies.filter((m: any) => m.watched && m.streamerRating === 9);
-            }
-
-            const currentChampion = monthMovies.find((m: any) => m.isChampion) || null;
-            setChampion(currentChampion);
-
-            const rescuerCounts: Record<string, number> = {};
-            monthMovies.forEach((m: any) => {
-              const name = m.requestedBy ? m.requestedBy.trim() : 'Ninguém';
-              if (name.toLowerCase() !== 'ninguém' && name !== '') {
-                rescuerCounts[name] = (rescuerCounts[name] || 0) + 1;
-              }
-            });
-            
-            const monthRanking = Object.entries(rescuerCounts)
-              .filter(([name]) => name.toLowerCase() !== 'chat')
-              .map(([name, count]) => ({ name, count }))
-              .sort((a, b) => b.count - a.count);
-
-            let topRescuer = 'N/A';
-            if (monthRanking.length > 0) {
-              const maxCount = monthRanking[0].count;
-              const tops = monthRanking.filter(r => r.count === maxCount);
-              topRescuer = tops.length > 1 ? 'Empate!' : tops[0].name;
-            }
-
-            setStats({ bestMovies, topRescuer, monthRanking });
+            const data = res.data;
+            const currentMonth = new Date().toISOString().substring(0, 7);
+            setChampion(data.champions[currentMonth] || null);
+            setStats({ bestMovies: data.bestMovies, topRescuer: data.monthTopRescuer, monthRanking: data.monthRanking });
           })
           .catch(err => console.error('Erro ao carregar estatísticas', err));
       };
@@ -117,7 +89,7 @@ export default function App() {
         <main className="main-content">
           {view === 'search' && <MovieSearch token={token} streamerMode={streamerMode} />}
           {view === 'saved' && <SavedMovies token={token} streamerMode={streamerMode} />}
-          {view === 'dashboard' && <Dashboard token={token} username={user?.name} streamerMode={streamerMode} />}
+          {view === 'dashboard' && <Dashboard token={token} username={user?.name} streamerMode={streamerMode} user={user} />}
           {view === 'settings' && <Settings token={token} user={user} setUser={setUser} streamerMode={streamerMode} setStreamerMode={setStreamerMode} />}
           {view === 'register' && <RegisterUser token={token} />}
         </main>

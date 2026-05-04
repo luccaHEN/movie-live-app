@@ -8,7 +8,7 @@ export class UserController {
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { id: true, email: true, name: true, avatar: true }
+        select: { id: true, email: true, name: true, avatar: true, isAdmin: true } as any
       });
       return res.json(user);
     } catch (error) {
@@ -24,7 +24,7 @@ export class UserController {
       const user = await prisma.user.update({
         where: { id: userId },
         data: { name, avatar },
-        select: { id: true, email: true, name: true, avatar: true }
+        select: { id: true, email: true, name: true, avatar: true, isAdmin: true } as any
       });
       return res.json(user);
     } catch (error) {

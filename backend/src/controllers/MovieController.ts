@@ -143,6 +143,135 @@ export class MovieController {
     }
   }
 
+  async stats(req: Request, res: Response): Promise<Response | any> {
+    const userId = (req as any).userId;
+    try {
+      const movies = await prisma.movie.findMany({ where: { userId } });
+
+      const totalMovies = movies.length;
+      const watchedMoviesList = movies.filter(m => m.watched);
+      const watchedMovies = watchedMoviesList.length;
+      const unwatchedMovies = totalMovies - watchedMovies;
+
+      const totalWatchMinutes = watchedMoviesList.reduce((acc, m) => acc + 105, 0); // Estimativa padrão
+      const totalWatchHours = Math.floor(totalWatchMinutes / 60);
+      const totalWatchDays = (totalWatchHours / 24).toFixed(1);
+
+      const streamerRatings = movies.filter(m => m.streamerRating != null).map(m => m.streamerRating as number);
+      const avgStreamerRating = streamerRatings.length ? (streamerRatings.reduce((a, b) => a + b, 0) / streamerRatings.length).toFixed(1) : 'N/A';
+
+      const chatRatings = movies.filter(m => m.chatRating != null).map(m => m.chatRating as number);
+      const avgChatRating = chatRatings.length ? (chatRatings.reduce((a, b) => a + b, 0) / chatRatings.length).toFixed(1) : 'N/A';
+
+      const rescuerCounts = movies.reduce((acc, m) => {
+        const name = m.requestedBy ? m.requestedBy.trim() : 'Ninguém';
+        acc[name] = (acc[name] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const ranking = Object.entries(rescuerCounts)
+        .filter(([name]) => name.toLowerCase() !== 'ninguém' && name !== '')
+        .map(([name, count]) => ({ name, count: count as number }))
+        .sort((a, b) => {
+          if (a.name.toLowerCase() === 'chat') return 1;
+          if (b.name.toLowerCase() === 'chat') return -1;
+          return b.count - a.count;
+        });
+
+      const sumasData = ranking.find(r => r.name.toLowerCase() === 'sumas') || null;
+      const chatData = ranking.find(r => r.name.toLowerCase() === 'chat') || null;
+      const filteredRanking = ranking.filter(r => r.name.toLowerCase() !== 'sumas' && r.name.toLowerCase() !== 'chat');
+
+      let topRescuer = 'N/A';
+      if (filteredRanking.length > 0) {
+        const maxRescues = filteredRanking[0].count;
+        const tiedUsers = filteredRanking.filter(r => r.count === maxRescues);
+        topRescuer = tiedUsers.length === 1 ? tiedUsers[0].name : 'Empate!';
+      }
+
+      const champions = movies.reduce((acc, m) => {
+        if (m.isChampion && m.watchDate) {
+          acc[new Date(m.watchDate).toISOString().substring(0, 7)] = m;
+        }
+        return acc;
+      }, {} as Record<string, any>);
+
+      const allUpcomingMovies = movies
+        .filter(m => !m.watched && m.watchDate)
+        .sort((a, b) => new Date(a.watchDate as Date).getTime() - new Date(b.watchDate as Date).getTime());
+
+      const upcomingMovies = allUpcomingMovies.slice(0, 3);
+
+      const moviesPerMonth = movies.reduce((acc, m) => {
+        if (m.watched && m.watchDate) {
+          const month = new Date(m.watchDate).toISOString().substring(0, 7);
+          acc[month] = (acc[month] || 0) + 1;
+        }
+        return acc;
+      }, {} as Record<string, number>);
+
+      const monthlyRescuers = movies.reduce((acc, m) => {
+        if (m.watchDate) {
+          const month = new Date(m.watchDate).toISOString().substring(0, 7);
+          const name = m.requestedBy ? m.requestedBy.trim() : 'Ninguém';
+          if (name.toLowerCase() !== 'ninguém' && name !== '' && name.toLowerCase() !== 'chat' && name.toLowerCase() !== 'sumas') {
+            if (!acc[month]) acc[month] = {};
+            acc[month][name] = (acc[month][name] || 0) + 1;
+          }
+        }
+        return acc;
+      }, {} as Record<string, Record<string, number>>);
+
+      const topRescuerByMonth: Record<string, {name: string, count: number, tooltip: string}> = {};
+      Object.entries(monthlyRescuers).forEach(([month, counts]) => {
+        let max = 0;
+        let tops: string[] = [];
+        Object.entries(counts as Record<string, number>).forEach(([name, count]) => {
+          if (count > max) { max = count; tops = [name]; } 
+          else if (count === max) { tops.push(name); }
+        });
+        if (max > 0) {
+          topRescuerByMonth[month] = { name: tops.length > 1 ? 'Empate' : tops[0], count: max, tooltip: tops.length > 1 ? tops.join(' / ') : tops[0] };
+        }
+      });
+
+      const currentMonth = new Date().toISOString().substring(0, 7);
+      const monthMovies = movies.filter(m => (m.watchDate ? new Date(m.watchDate).toISOString().substring(0, 7) : 'none') === currentMonth);
+      let bestMovies = monthMovies.filter(m => m.watched && m.streamerRating === 10);
+      if (bestMovies.length === 0) bestMovies = monthMovies.filter(m => m.watched && m.streamerRating === 9);
+
+      const currentMonthRescuerCounts = monthMovies.reduce((acc, m) => {
+        const name = m.requestedBy ? m.requestedBy.trim() : 'Ninguém';
+        acc[name] = (acc[name] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const currentMonthRanking = Object.entries(currentMonthRescuerCounts)
+        .filter(([name]) => name.toLowerCase() !== 'ninguém' && name !== '' && name.toLowerCase() !== 'chat' && name.toLowerCase() !== 'sumas')
+        .map(([name, count]) => ({ name, count: count as number }))
+        .sort((a, b) => b.count - a.count);
+
+      let currentMonthTopRescuer = 'N/A';
+      if (currentMonthRanking.length > 0) {
+        const maxRescues = currentMonthRanking[0].count;
+        const tiedUsers = currentMonthRanking.filter(r => r.count === maxRescues);
+        currentMonthTopRescuer = tiedUsers.length > 1 ? 'Empate!' : tiedUsers[0].name;
+      }
+
+      return res.json({
+        totalMovies, watchedMovies, unwatchedMovies, totalWatchHours, totalWatchDays,
+        avgStreamerRating, avgChatRating, rankingForTop: filteredRanking,
+        topRescuer, sumasData, chatData, filteredRanking, champions, allUpcomingMovies,
+        upcomingMovies, moviesPerMonth, topRescuerByMonth, bestMovies,
+        monthRanking: currentMonthRanking,
+        monthTopRescuer: currentMonthTopRescuer,
+        rawMoviesForGenre: movies // Retorna todos os filmes para o Frontend decidir
+      });
+    } catch (error) {
+      return res.status(500).json({ error: 'Erro ao gerar estatísticas' });
+    }
+  }
+
   async getTmdbDetails(req: Request, res: Response): Promise<Response | any> {
     const { id } = req.params; // tmdbId do filme
 

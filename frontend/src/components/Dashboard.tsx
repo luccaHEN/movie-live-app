@@ -9,10 +9,11 @@ interface DashboardProps {
   token: string;
   username?: string;
   streamerMode: boolean;
+  user?: any; // Recebe o usuário atual para verificação de permissões
 }
 
-export default function Dashboard({ token, username, streamerMode }: DashboardProps) {
-  const [movies, setMovies] = useState<any[]>([]);
+export default function Dashboard({ token, username, streamerMode, user }: DashboardProps) {
+  const [statsData, setStatsData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showUpcomingModal, setShowUpcomingModal] = useState(false);
@@ -26,10 +27,10 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
   const fetchMovies = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const response = await api.get('/movies', {
+      const response = await api.get('/movies/stats', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setMovies(response.data);
+      setStatsData(response.data);
     } catch (error) {
       toast.error("Erro ao carregar estatísticas.");
     } finally {
@@ -43,7 +44,7 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
 
   useEffect(() => {
     setGenreRanking([]);
-  }, [movies]);
+  }, [statsData]);
 
   useEffect(() => {
     const handleUpdate = () => fetchMovies(true);
@@ -51,76 +52,14 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
     return () => window.removeEventListener('moviesUpdated', handleUpdate);
   }, [fetchMovies]);
 
-  if (isLoading) {
+  if (isLoading || !statsData) {
     return <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '1.2rem' }}>Calculando estatísticas... 📊</p>;
   }
 
-  // Cálculos Estatísticos
-  const totalMovies = movies.length;
-  const watchedMoviesList = movies.filter(m => m.watched);
-  const watchedMovies = watchedMoviesList.length;
-  const unwatchedMovies = totalMovies - watchedMovies;
+  // Extração rápida de todos os cálculos que agora o Backend fornece!
+  const { totalMovies, watchedMovies, unwatchedMovies, totalWatchHours, totalWatchDays, avgStreamerRating, avgChatRating, rankingForTop, topRescuer, sumasData, chatData, filteredRanking, champions, allUpcomingMovies, upcomingMovies, moviesPerMonth, topRescuerByMonth, rawMoviesForGenre } = statsData;
   
-  // Cálculo do Tempo Total de Tela
-  const totalWatchMinutes = watchedMoviesList.reduce((acc, m) => acc + (m.runtime || 105), 0);
-  const totalWatchHours = Math.floor(totalWatchMinutes / 60);
-  const totalWatchDays = (totalWatchHours / 24).toFixed(1);
-
-  const streamerRatings = movies.filter(m => m.streamerRating && m.streamerRating > 0).map(m => m.streamerRating);
-  const avgStreamerRating = streamerRatings.length ? (streamerRatings.reduce((a, b) => a + b, 0) / streamerRatings.length).toFixed(1) : 'N/A';
-
-  const chatRatings = movies.filter(m => m.chatRating && m.chatRating > 0).map(m => m.chatRating);
-  const avgChatRating = chatRatings.length ? (chatRatings.reduce((a, b) => a + b, 0) / chatRatings.length).toFixed(1) : 'N/A';
-
-  const rescuerCounts = movies.reduce((acc, m) => {
-    const name = m.requestedBy ? m.requestedBy.trim() : 'Ninguém';
-    acc[name] = (acc[name] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  // Transforma o objeto em um Array ordenado (do maior para o menor)
-  const ranking = Object.entries(rescuerCounts)
-    .filter(([name]) => name.toLowerCase() !== 'ninguém' && name !== '')
-    .map(([name, count]) => ({ name, count: count as number }))
-    .sort((a, b) => {
-      if (a.name.toLowerCase() === 'chat') return 1; // Joga o Chat para o final
-      if (b.name.toLowerCase() === 'chat') return -1; // Mantém o Chat no final
-      return b.count - a.count; // Ordena os demais normalmente do maior pro menor
-    });
-
-  const rankingForTop = ranking.filter(r => r.name.toLowerCase() !== 'chat');
-  let topRescuer = 'N/A';
-  let maxRescues = 0;
-  if (rankingForTop.length > 0) {
-    maxRescues = rankingForTop[0].count;
-    const tiedUsers = rankingForTop.filter(r => r.count === maxRescues);
-    topRescuer = tiedUsers.length === 1 ? tiedUsers[0].name : 'Empate!';
-  }
-
-  // Campeões salvos no banco de dados
-  const champions = movies.reduce((acc, m) => {
-    if (m.isChampion && m.watchDate) {
-      acc[String(m.watchDate).substring(0, 7)] = m;
-    }
-    return acc;
-  }, {} as Record<string, any>);
-
-  // Próximos filmes agendados (Fila)
-  const allUpcomingMovies = movies
-    .filter(m => !m.watched && m.watchDate)
-    .sort((a, b) => new Date(a.watchDate).getTime() - new Date(b.watchDate).getTime());
-  const upcomingMovies = allUpcomingMovies.slice(0, 3);
-
-  // Dados para o Gráfico de Barras (Filmes assistidos nos últimos meses)
-  const moviesPerMonth = movies.reduce((acc, m) => {
-    if (m.watched && m.watchDate) {
-      const month = new Date(m.watchDate).toISOString().substring(0, 7);
-      acc[month] = (acc[month] || 0) + 1;
-    }
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const chartData = Object.entries(moviesPerMonth).sort(([a], [b]) => a.localeCompare(b)).slice(expandedChart ? -12 : -6) as [string, number][]; // Pega 6 ou 12 meses
+  const chartData = Object.entries(moviesPerMonth as Record<string, number>).sort(([a], [b]) => a.localeCompare(b)).slice(expandedChart ? -12 : -6) as [string, number][];
   const maxMoviesInMonth = chartData.length > 0 ? Math.max(...chartData.map(d => d[1])) : 1;
 
   const handleOpenGenreModal = async () => {
@@ -133,10 +72,11 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
       const genreTime: Record<string, number> = {};
       
       const chunkSize = 5;
-      for (let i = 0; i < watchedMoviesList.length; i += chunkSize) {
-        const chunk = watchedMoviesList.slice(i, i + chunkSize);
+      const watchedList = rawMoviesForGenre.filter((m: any) => m.watched);
+      for (let i = 0; i < watchedList.length; i += chunkSize) {
+        const chunk = watchedList.slice(i, i + chunkSize);
         
-        await Promise.all(chunk.map(async (m) => {
+        await Promise.all(chunk.map(async (m: any) => {
           let runtime = m.runtime || 105;
           let genres = ['Desconhecido'];
 
@@ -249,7 +189,7 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
               <h3 style={{ textAlign: 'center', margin: '0 0 20px 0', color: 'var(--primary)' }}>📈 Filmes Assistidos ({expandedChart ? 'Últimos 12 Meses' : 'Últimos 6 Meses'})</h3>
               <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', minHeight: '150px', gap: '10px' }}>
                 {chartData.map(([month, count]) => (
-                  <div key={month} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                  <div key={month} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, minWidth: 0 }}>
                     <span 
                       style={{ cursor: 'pointer', fontSize: '1.2rem', marginBottom: '5px', opacity: champions[month] ? 1 : 0.3, transition: '0.2s' }}
                       onClick={(e) => {
@@ -268,6 +208,14 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
                     <span style={{ marginTop: '10px', fontSize: '0.8rem', color: '#aaa' }}>
                       {month.split('-')[1]}/{month.split('-')[0].substring(2)}
                     </span>
+                    {topRescuerByMonth[month] && (
+                      <span 
+                        style={{ marginTop: '4px', fontSize: '0.7rem', color: '#ec4899', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', textAlign: 'center' }}
+                        title={`${topRescuerByMonth[month].tooltip} com ${topRescuerByMonth[month].count} resgates`}
+                      >
+                        🏅 {topRescuerByMonth[month].name}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -297,7 +245,18 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
               }}>
                 {topRescuer}
               </p>
-              {ranking.length > 0 && <span style={{ fontSize: '0.9rem', color: '#aaa', textDecoration: 'underline' }}>Ver ranking completo</span>}
+              {sumasData && (
+                <div style={{ fontSize: '1.1rem', marginBottom: '5px', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <img src="/seal.png" alt="Sumas" style={{ width: '24px', height: '24px', marginRight: '8px', objectFit: 'contain' }} />
+                  Sumas: <span style={{ color: '#10b981', marginLeft: '5px' }}>{sumasData.count}</span>
+                </div>
+              )}
+              {chatData && (
+                <div style={{ fontSize: '1.1rem', marginBottom: '10px', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  💬 Chat: <span style={{ color: '#10b981', marginLeft: '5px' }}>{chatData.count}</span>
+                </div>
+              )}
+              {filteredRanking.length > 0 && <span style={{ fontSize: '0.9rem', color: '#aaa', textDecoration: 'underline' }}>Ver ranking completo</span>}
             </div>
 
             {/* Próximos da Fila */}
@@ -310,7 +269,7 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
               <h3 style={{ margin: '0 0 15px 0', textAlign: 'center' }}>Fila de Filmes 🍿</h3>
               {upcomingMovies.length > 0 ? (
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, justifyContent: 'center' }}>
-                  {upcomingMovies.map(m => (
+                  {upcomingMovies.map((m: any) => (
                     <li key={m.id} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--input-border)', paddingBottom: '5px', fontSize: '0.95rem' }}>
                       <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px', fontWeight: 'bold' }} title={m.title}>{m.title}</span>
                       <span style={{ color: '#aaa' }}>{new Date(m.watchDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }).substring(0,5)}</span>
@@ -333,35 +292,58 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
       {/* Modal de Ranking de Resgatadores */}
       <Modal isOpen={showModal} onClose={() => setShowModal(false)}>
         <h2 style={{ marginBottom: '25px', color: 'var(--primary)', textAlign: 'center' }}>🏆 Ranking de Resgates</h2>
+            
             {rankingForTop.length > 0 ? (
-              <>
-                <Podium ranking={rankingForTop} />
-                <div style={{ borderTop: '1px solid var(--input-border)', margin: '0 -20px' }}></div>
-                
-                <ul style={{ listStyle: 'none', padding: '10px 0 0 0', margin: 0 }}>
-                  {ranking
-                    .filter(user => {
-                      const isChat = user.name.toLowerCase() === 'chat';
-                      const position = rankingForTop.findIndex(r => r.name === user.name) + 1;
-                      return isChat || position > 3; // Remove o Top 3 da lista de baixo
-                    })
-                    .map((user, index) => {
-                      const isChat = user.name.toLowerCase() === 'chat';
-                      const position = rankingForTop.findIndex(r => r.name === user.name) + 1;
-                      return (
-                        <li key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 10px', borderBottom: '1px solid var(--input-border)' }}>
-                          <span>
-                            {isChat ? '💬 ' : `${position}º `}
-                            {user.name}
-                          </span>
-                          <span>{user.count} filme(s)</span>
-                        </li>
-                      );
-                  })}
-                </ul>
-              </>
+              <Podium ranking={rankingForTop} />
             ) : (
-              <p style={{ textAlign: 'center', marginTop: '20px' }}>Nenhum resgate registrado ainda.</p>
+              <p style={{ textAlign: 'center', margin: '20px 0' }}>Nenhum resgate de viewers registrado ainda.</p>
+            )}
+
+            {/* Linha divisória */}
+            {(sumasData || chatData || rankingForTop.length > 0) && (
+              <div style={{ borderTop: '1px solid var(--input-border)', margin: '20px -20px' }}></div>
+            )}
+
+            {/* Exibe o Sumas e o Chat destacados abaixo do pódio */}
+            {sumasData && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--primary)', borderRadius: '8px', marginBottom: '10px', fontWeight: 'bold' }}>
+                <span style={{ display: 'flex', alignItems: 'center' }}>
+                  <img src="/seal.png" alt="Sumas" style={{ width: '24px', height: '24px', marginRight: '8px', objectFit: 'contain' }} />
+                  Sumas
+                </span>
+                <span style={{ color: '#10b981' }}>{sumasData.count} filme(s)</span>
+              </div>
+            )}
+            {chatData && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--primary)', borderRadius: '8px', marginBottom: '20px', fontWeight: 'bold' }}>
+                <span style={{ display: 'flex', alignItems: 'center' }}>
+                  💬 Chat
+                </span>
+                <span style={{ color: '#10b981' }}>{chatData.count} filme(s)</span>
+              </div>
+            )}
+
+            {/* Restante do Ranking (Abaixo do Top 3) */}
+            {rankingForTop.length > 0 && (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {filteredRanking
+                  .filter((user: { name: string; count: number }) => {
+                    const position = rankingForTop.findIndex((r: any) => r.name === user.name) + 1;
+                    return position > 3; // Remove o Top 3 da lista de baixo
+                  })
+                  .map((user: { name: string; count: number }, index: number) => {
+                    const position = rankingForTop.findIndex((r: any) => r.name === user.name) + 1;
+                    return (
+                      <li key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 10px', borderBottom: '1px solid var(--input-border)' }}>
+                        <span>
+                          {`${position}º `}
+                          {user.name}
+                        </span>
+                        <span>{user.count} filme(s)</span>
+                      </li>
+                    );
+                })}
+              </ul>
         )}
       </Modal>
 
@@ -370,7 +352,7 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
         <h2 style={{ marginBottom: '20px', color: 'var(--primary)', textAlign: 'center' }}>🍿 Fila Completa de Filmes</h2>
             {allUpcomingMovies.length > 0 ? (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {allUpcomingMovies.map((m, index) => (
+              {allUpcomingMovies.map((m: any, index: number) => (
                   <li key={m.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 10px', borderBottom: '1px solid var(--input-border)', alignItems: 'center' }}>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center', overflow: 'hidden', marginRight: '10px' }}>
                       <span style={{ color: '#aaa', fontWeight: 'bold', width: '25px', flexShrink: 0 }}>{index + 1}º</span>
@@ -397,7 +379,7 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
               </div>
             ) : genreRanking.length > 0 ? (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {genreRanking.map((item, index) => (
+            {genreRanking.map((item: any, index: number) => (
                   <li key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 10px', borderBottom: '1px solid var(--input-border)' }}>
                     <span style={{ fontWeight: index === 0 ? 'bold' : 'normal', color: index === 0 ? '#10b981' : 'inherit' }}>
                       {index + 1}º {item.genre}
@@ -418,17 +400,17 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
         </h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {(() => {
-                const monthMovies = movies.filter(m => m.watched && m.watchDate && m.watchDate.startsWith(championModalMonth!));
-                let candidates = monthMovies.filter(m => m.streamerRating === 10);
+                const monthMovies = rawMoviesForGenre.filter((m: any) => m.watched && m.watchDate && String(m.watchDate).startsWith(championModalMonth!));
+                let candidates = monthMovies.filter((m: any) => m.streamerRating === 10);
                 if (candidates.length === 0) {
-                  candidates = monthMovies.filter(m => m.streamerRating === 9);
+                  candidates = monthMovies.filter((m: any) => m.streamerRating === 9);
                 }
                 
                 if (candidates.length === 0) {
                   return <p style={{ textAlign: 'center', color: '#aaa' }}>Nenhum filme avaliado com nota 9 ou 10 neste mês.</p>;
                 }
 
-                return candidates.sort((a, b) => (b.streamerRating || 0) - (a.streamerRating || 0)).map(m => (
+            return candidates.sort((a: any, b: any) => (b.streamerRating || 0) - (a.streamerRating || 0)).map((m: any) => (
                     <div 
                       key={m.id} 
                       onClick={async () => {
@@ -450,7 +432,7 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
                           toast.error("Erro ao atualizar o campeão.");
                         }
                       }}
-                      style={{ display: 'flex', gap: '15px', padding: '10px', backgroundColor: champions[championModalMonth!]?.id === m.id ? 'rgba(236, 72, 153, 0.2)' : 'var(--card-bg)', border: champions[championModalMonth!]?.id === m.id ? '1px solid #ec4899' : '1px solid var(--input-border)', borderRadius: '8px', cursor: 'pointer', alignItems: 'center' }}
+                      style={{ display: 'flex', gap: '15px', padding: '10px', backgroundColor: champions[championModalMonth!]?.id === m.id ? 'rgba(236, 72, 153, 0.2)' : 'var(--card-bg)', border: champions[championModalMonth!]?.id === m.id ? '1px solid #ec4899' : '1px solid var(--input-border)', borderRadius: '8px', cursor: 'pointer', alignItems: 'center', transition: '0.2s' }}
                     >
                       {m.poster ? (
                         <img src={`https://image.tmdb.org/t/p/w92${m.poster}`} alt={m.title} style={{ width: '40px', borderRadius: '4px' }} />
@@ -459,7 +441,7 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
                       )}
                       <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                         <span style={{ fontWeight: 'bold' }}>{m.title}</span>
-                        <span style={{ fontSize: '0.85rem', color: '#aaa' }}>Minha Nota: ⭐ {m.streamerRating || 'N/A'}</span>
+                        <span style={{ fontSize: '0.85rem', color: '#aaa' }}>Minha Nota: ⭐ {m.streamerRating != null ? m.streamerRating : 'N/A'}</span>
                       </div>
                       {champions[championModalMonth!]?.id === m.id && <span style={{ fontSize: '1.5rem' }}>👑</span>}
                     </div>
@@ -468,7 +450,7 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
         </div>
       </Modal>
 
-      <RouletteModal isOpen={showRoulette} onClose={() => setShowRoulette(false)} token={token} streamerMode={streamerMode} fetchMovies={fetchMovies} savedMovies={movies} />
+      <RouletteModal isOpen={showRoulette} onClose={() => setShowRoulette(false)} token={token} streamerMode={streamerMode} fetchMovies={fetchMovies} savedMovies={rawMoviesForGenre} />
     </div>
   );
 }

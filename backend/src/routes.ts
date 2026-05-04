@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { AuthController } from './controllers/AuthController';
 import { MovieController } from './controllers/MovieController';
 import { UserController } from './controllers/UserController';
-import { authMiddleware } from './middlewares/auth';
+import { isAuthenticated, isAdministrator } from './middlewares/auth';
 import { prisma } from './prisma';
 
 export const routes = Router();
@@ -13,7 +13,6 @@ const userController = new UserController();
 
 // Rotas Públicas
 routes.post('/login', authController.login);
-routes.post('/register', authController.register);
 
 routes.get('/movies/public/:username', async (req, res) => {
   try {
@@ -50,11 +49,15 @@ routes.get('/movies/public/:username', async (req, res) => {
 });
 
 // Rotas Protegidas (Exigem o envio do Token no header de Autorização)
-routes.use(authMiddleware);
+routes.use(isAuthenticated);
+
+// Rota de registro agora é protegida e só para administradores
+routes.post('/register', isAdministrator, authController.register);
 
 routes.get('/movies/search', movieController.search);
 routes.get('/movies/popular', movieController.popular);
 routes.get('/movies/tmdb/:id', movieController.getTmdbDetails);
+routes.get('/movies/stats', movieController.stats);
 routes.get('/movies', movieController.index);
 routes.post('/movies', movieController.create);
 routes.put('/movies/:id', movieController.update);

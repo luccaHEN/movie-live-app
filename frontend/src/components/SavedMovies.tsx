@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import MovieDetailsModal from './MovieDetailsModal';
@@ -8,9 +8,89 @@ interface SavedMoviesProps {
   streamerMode: boolean;
 }
 
+// COMPONENTE ISOLADO: Garante que os filmes não re-renderizem ao digitar as notas!
+const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, sortBy, draggedMovieId, dragOverMovieId, setDraggedMovieId, setDragOverMovieId, onDrop, streamerMode }: any) => {
+  const [requestedBy, setRequestedBy] = useState(movie.requestedBy || '');
+  const [streamerRating, setStreamerRating] = useState(movie.streamerRating ?? '');
+  const [chatRating, setChatRating] = useState(movie.chatRating ?? '');
+
+  // Sincroniza estados locais caso ocorra alguma alteração externa via Drag & Drop
+  useEffect(() => setRequestedBy(movie.requestedBy || ''), [movie.requestedBy]);
+  useEffect(() => setStreamerRating(movie.streamerRating ?? ''), [movie.streamerRating]);
+  useEffect(() => setChatRating(movie.chatRating ?? ''), [movie.chatRating]);
+
+  return (
+    <div 
+      className={`movie-card ${sortBy === 'DATE' ? 'draggable-card' : ''} ${draggedMovieId === movie.id ? 'dragging' : ''} ${dragOverMovieId === movie.id ? 'drag-over' : ''}`} 
+      style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}
+      draggable={sortBy === 'DATE'}
+      onDragStart={() => setDraggedMovieId(movie.id)}
+      onDragOver={(e) => { e.preventDefault(); if (dragOverMovieId !== movie.id) setDragOverMovieId(movie.id); }}
+      onDrop={() => onDrop(movie.id)}
+      onDragEnd={() => { setDraggedMovieId(null); setDragOverMovieId(null); }}
+    >
+      <div onClick={() => onShowDetails(movie.tmdbId)} className="movie-card-header" title="Ver Detalhes">
+        <p className="movie-title">{movie.title}</p>
+        {movie.poster ? (
+          <img src={`https://image.tmdb.org/t/p/w200${movie.poster}`} alt={movie.title} className="movie-poster" style={{ height: 'auto', aspectRatio: '2/3' }} />
+        ) : (
+          <div className="movie-poster-placeholder" style={{ height: 'auto', aspectRatio: '2/3' }}><span>Sem capa</span></div>
+        )}
+      </div>
+      
+      <label className="checkbox-label">
+        <input type="checkbox" checked={movie.watched} onChange={(e) => onUpdate(movie.id, { watched: e.target.checked })} />
+        <span className="toggle-switch"></span>
+        Já assisti
+      </label>
+
+      {streamerMode && (
+        <label className="input-label">
+          Resgatado por:
+          <input type="text" placeholder="Ninguém" value={requestedBy} onChange={(e) => setRequestedBy(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={(e) => { if (requestedBy !== (movie.requestedBy || '')) onUpdate(movie.id, { requestedBy: requestedBy.trim() || null }); }} />
+        </label>
+      )}
+      
+      {(streamerMode || movie.watched) && (
+        <label className="input-label" style={{ marginBottom: '15px' }}>
+          {streamerMode ? 'Agendado para:' : 'Data que assistiu:'}
+          <input type="date" value={movie.watchDate ? new Date(movie.watchDate).toISOString().split('T')[0] : ''} onChange={(e) => onUpdate(movie.id, { watchDate: e.target.value ? new Date(e.target.value).toISOString() : null })} />
+        </label>
+      )}
+
+      <div className="ratings-container">
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+          <label className="input-label" style={{ width: streamerMode ? '50%' : '100%' }}>
+            Minha Nota:
+            <input type="number" min="0" max="10" step="0.01" value={streamerRating} onChange={(e) => setStreamerRating(e.target.value.replace(',', '.'))} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={(e) => {
+                if (streamerRating !== (movie.streamerRating ?? '')) {
+                  let val = streamerRating ? parseFloat(String(streamerRating).replace(',', '.')) : null;
+                  if (val !== null) { val = Math.max(0, Math.min(10, parseFloat(val.toFixed(2)))); }
+                  onUpdate(movie.id, { streamerRating: val });
+                }
+              }} />
+          </label>
+          {streamerMode && (
+            <label className="input-label" style={{ width: '50%' }}>
+              Nota Chat:
+              <input type="number" min="0" max="10" step="0.01" value={chatRating} onChange={(e) => setChatRating(e.target.value.replace(',', '.'))} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={(e) => {
+                  if (chatRating !== (movie.chatRating ?? '')) {
+                    let val = chatRating ? parseFloat(String(chatRating).replace(',', '.')) : null;
+                    if (val !== null) { val = Math.max(0, Math.min(10, parseFloat(val.toFixed(2)))); }
+                    onUpdate(movie.id, { chatRating: val });
+                  }
+                }} />
+            </label>
+          )}
+        </div>
+      </div>
+      <button onClick={() => onDelete(movie.id)} className="btn-danger" style={{ marginTop: 'auto' }}>Deletar Filme</button>
+    </div>
+  );
+});
+
 export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
   const [savedMovies, setSavedMovies] = useState<any[]>([]);
-  const [drafts, setDrafts] = useState<Record<number, any>>({});
   const [selectedMovieDetails, setSelectedMovieDetails] = useState<any | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'WATCHED' | 'UNWATCHED'>('ALL');
@@ -44,13 +124,13 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
   // Volta para a primeira página sempre que os filtros mudarem
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedMonth, statusFilter, rescuerFilter, sortBy]);
+  }, [statusFilter, rescuerFilter, sortBy, selectedMonth]);
 
   const handleResetFilters = () => {
     setRescuerFilter('');
     setStatusFilter('ALL');
-    setSelectedMonth('ALL');
     setSortBy('DATE');
+    setSelectedMonth('ALL');
   };
 
   const handleDeleteMovie = (id: number) => {
@@ -63,7 +143,7 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
               toast.dismiss(t.id);
               try {
                 await api.delete(`/movies/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-                setSavedMovies(prev => prev.filter(movie => movie.id !== id));
+              setSavedMovies(prev => prev.filter((movie: any) => movie.id !== id));
                 toast.success('Filme removido!');
               } catch (error: any) {
                 toast.error(error.response?.data?.error || 'Erro ao deletar o filme.');
@@ -84,7 +164,7 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
   // Função para atualizar qualquer campo do filme automaticamente
   const handleUpdateMovie = async (id: number, updates: any) => {
     // Atualização Otimista: Muda na tela imediatamente para não travar a digitação
-    setSavedMovies(prevMovies => prevMovies.map(movie => movie.id === id ? { ...movie, ...updates } : movie));
+    setSavedMovies(prevMovies => prevMovies.map((movie: any) => movie.id === id ? { ...movie, ...updates } : movie));
 
     try {
       await api.put(`/movies/${id}`, updates, {
@@ -112,8 +192,8 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
 
   // Extrai as chaves únicas de Ano e Mês (ex: "2024-04")
   const uniqueMonthKeys = Array.from(
-    new Set(savedMovies.map(m => m.watchDate ? String(m.watchDate).substring(0, 7) : 'none'))
-  ).sort((a, b) => a === 'none' ? 1 : b === 'none' ? -1 : a.localeCompare(b));
+    new Set(savedMovies.map((m: any) => m.watchDate ? String(m.watchDate).substring(0, 7) : 'none'))
+  ).sort((a: any, b: any) => a === 'none' ? 1 : b === 'none' ? -1 : a.localeCompare(b));
 
   // Transforma a chave "2024-04" no texto amigável "Abril 2024"
   const getMonthLabel = (key: string) => {
@@ -124,6 +204,48 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
     return `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
   };
 
+  // Filtra e ordena os filmes pela data de agendamento (mais antigos primeiro)
+  const filteredMovies = savedMovies
+    .filter((m: any) => selectedMonth === 'ALL' || (m.watchDate ? String(m.watchDate).substring(0, 7) : 'none') === selectedMonth)
+    .filter((m: any) => {
+      if (statusFilter === 'WATCHED') return m.watched === true;
+      if (statusFilter === 'UNWATCHED') return m.watched === false;
+      return true; // Se for 'ALL', retorna todos
+    })
+    .filter((m: any) => {
+      if (rescuerFilter.trim() === '') return true;
+      const searchTerm = rescuerFilter.toLowerCase();
+      const requestedBy = (m.requestedBy || 'ninguém').toLowerCase();
+      const title = (m.title || '').toLowerCase();
+      return requestedBy.includes(searchTerm) || title.includes(searchTerm);
+    })
+    .filter((m: any) => {
+      // Se estiver ordenando por nota, remove os filmes que não têm nenhuma avaliação
+      if (sortBy === 'RATING_DESC' || sortBy === 'RATING_ASC') {
+        return m.streamerRating != null;
+      }
+      return true;
+    })
+    .sort((a: any, b: any) => {
+      if (sortBy === 'ALPHA') {
+        return (a.title || '').localeCompare(b.title || '');
+      }
+      if (sortBy === 'RATING_DESC') {
+        return (b.streamerRating ?? 0) - (a.streamerRating ?? 0);
+      }
+      if (sortBy === 'RATING_ASC') {
+        return (a.streamerRating ?? 0) - (b.streamerRating ?? 0);
+      }
+      // Se os dois não têm data, mantém a ordem original
+      if (!a.watchDate && !b.watchDate) return 0;
+      // Se 'a' não tem data, joga para o final da lista
+      if (!a.watchDate) return 1;
+      // Se 'b' não tem data, joga para o final da lista
+      if (!b.watchDate) return -1;
+      // Ordena cronologicamente (ex: 10/04 antes de 11/04)
+      return new Date(a.watchDate).getTime() - new Date(b.watchDate).getTime();
+    });
+
   // Lógica de Drag & Drop para reordenar filmes no mesmo dia
   const handleDrop = async (targetId: number) => {
     if (!draggedMovieId || draggedMovieId === targetId) {
@@ -132,23 +254,23 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
       return;
     }
 
-    const draggedMovie = savedMovies.find(m => m.id === draggedMovieId);
-    const targetMovie = savedMovies.find(m => m.id === targetId);
+    const draggedMovie = savedMovies.find((m: any) => m.id === draggedMovieId);
+    const targetMovie = savedMovies.find((m: any) => m.id === targetId);
     if (!draggedMovie || !targetMovie) return;
 
     const baseDateString = targetMovie.watchDate
       ? new Date(targetMovie.watchDate).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0];
 
-    const moviesOnSameDay = filteredMovies.filter(m => {
+    const moviesOnSameDay = filteredMovies.filter((m: any) => {
       const mDate = m.watchDate ? new Date(m.watchDate).toISOString().split('T')[0] : null;
       return mDate === baseDateString;
     });
 
-    const otherMovies = moviesOnSameDay.filter(m => m.id !== draggedMovieId);
-    const targetIndex = otherMovies.findIndex(m => m.id === targetId);
-    const originalDraggedIndex = filteredMovies.findIndex(m => m.id === draggedMovieId);
-    const originalTargetIndex = filteredMovies.findIndex(m => m.id === targetId);
+    const otherMovies = moviesOnSameDay.filter((m: any) => m.id !== draggedMovieId);
+    const targetIndex = otherMovies.findIndex((m: any) => m.id === targetId);
+    const originalDraggedIndex = filteredMovies.findIndex((m: any) => m.id === draggedMovieId);
+    const originalTargetIndex = filteredMovies.findIndex((m: any) => m.id === targetId);
 
     let insertIndex = targetIndex;
     if (targetIndex !== -1) {
@@ -160,8 +282,8 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
     otherMovies.splice(insertIndex, 0, draggedMovie);
 
     const changedMovies: any[] = [];
-    const newSavedMovies = savedMovies.map(m => {
-      const dayIndex = otherMovies.findIndex(dayMovie => dayMovie.id === m.id);
+    const newSavedMovies = savedMovies.map((m: any) => {
+      const dayIndex = otherMovies.findIndex((dayMovie: any) => dayMovie.id === m.id);
       if (dayIndex !== -1) {
         const newDateObj = new Date(`${baseDateString}T00:00:00.000Z`);
         newDateObj.setSeconds(dayIndex);
@@ -189,52 +311,6 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
     }
   };
 
-  // Filtra e ordena os filmes pela data de agendamento (mais antigos primeiro)
-  const filteredMovies = savedMovies
-    .filter(m => selectedMonth === 'ALL' || (m.watchDate ? String(m.watchDate).substring(0, 7) : 'none') === selectedMonth)
-    .filter(m => {
-      if (statusFilter === 'WATCHED') return m.watched === true;
-      if (statusFilter === 'UNWATCHED') return m.watched === false;
-      return true; // Se for 'ALL', retorna todos
-    })
-    .filter(m => {
-      if (rescuerFilter.trim() === '') return true;
-      const searchTerm = rescuerFilter.toLowerCase();
-      const requestedBy = (m.requestedBy || 'ninguém').toLowerCase();
-      const title = (m.title || '').toLowerCase();
-      return requestedBy.includes(searchTerm) || title.includes(searchTerm);
-    })
-    .filter(m => {
-      // Se estiver ordenando por nota, remove os filmes que não têm nenhuma avaliação
-      if (sortBy === 'RATING_DESC' || sortBy === 'RATING_ASC') {
-        return (m.streamerRating != null && m.streamerRating > 0) || (m.chatRating != null && m.chatRating > 0);
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'ALPHA') {
-        return (a.title || '').localeCompare(b.title || '');
-      }
-      if (sortBy === 'RATING_DESC') {
-        const ratingA = Math.max(a.streamerRating || 0, a.chatRating || 0);
-        const ratingB = Math.max(b.streamerRating || 0, b.chatRating || 0);
-        return ratingB - ratingA;
-      }
-      if (sortBy === 'RATING_ASC') {
-        const ratingA = Math.max(a.streamerRating || 0, a.chatRating || 0);
-        const ratingB = Math.max(b.streamerRating || 0, b.chatRating || 0);
-        return ratingA - ratingB;
-      }
-      // Se os dois não têm data, mantém a ordem original
-      if (!a.watchDate && !b.watchDate) return 0;
-      // Se 'a' não tem data, joga para o final da lista
-      if (!a.watchDate) return 1;
-      // Se 'b' não tem data, joga para o final da lista
-      if (!b.watchDate) return -1;
-      // Ordena cronologicamente (ex: 10/04 antes de 11/04)
-      return new Date(a.watchDate).getTime() - new Date(b.watchDate).getTime();
-    });
-
   // Lógica de Paginação
   const indexOfLastMovie = currentPage * moviesPerPage;
   const indexOfFirstMovie = indexOfLastMovie - moviesPerPage;
@@ -243,7 +319,7 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
 
   // Cálculos para o Resumo
   const totalFiltered = filteredMovies.length;
-  const watchedFiltered = filteredMovies.filter(m => m.watched).length;
+  const watchedFiltered = filteredMovies.filter((m: any) => m.watched).length;
   const unwatchedFiltered = totalFiltered - watchedFiltered;
   const progressPercentage = totalFiltered > 0 ? Math.round((watchedFiltered / totalFiltered) * 100) : 0;
 
@@ -354,7 +430,7 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
         </div>
 
         {/* Botão de Limpar Filtros */}
-        {(rescuerFilter !== '' || statusFilter !== 'ALL' || selectedMonth !== 'ALL' || sortBy !== 'DATE') && (
+        {(rescuerFilter !== '' || statusFilter !== 'ALL' || sortBy !== 'DATE' || selectedMonth !== 'ALL') && (
           <button 
             className="btn-secondary btn-reset-filters" 
             onClick={handleResetFilters}
@@ -369,125 +445,19 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
 
         <h2 style={{ marginTop: 0, marginBottom: '20px', color: 'var(--primary)', width: '100%', borderBottom: '1px solid var(--input-border)', paddingBottom: '10px' }}>
-          {selectedMonth === 'ALL' ? 'Todos os Filmes' : getMonthLabel(selectedMonth)}
+          {selectedMonth === 'ALL' ? 'Todos os Filmes Salvos' : `Meus Filmes - ${getMonthLabel(selectedMonth)}`}
         </h2>
 
       {isLoading ? (
         <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '1.2rem' }}>Carregando filmes... 🍿</p>
       ) : (
-        <div className="movies-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', width: '100%', maxWidth: '100%', gap: '20px', marginTop: '0' }}>
-          {currentMovies.length === 0 ? <p>Nenhum filme encontrado para este filtro.</p> : currentMovies.map(movie => (
-          <div 
-            key={movie.id} 
-            className={`movie-card ${sortBy === 'DATE' ? 'draggable-card' : ''} ${draggedMovieId === movie.id ? 'dragging' : ''} ${dragOverMovieId === movie.id ? 'drag-over' : ''}`} 
-            style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}
-            draggable={sortBy === 'DATE'}
-            onDragStart={() => setDraggedMovieId(movie.id)}
-            onDragOver={(e) => {
-              e.preventDefault();
-              if (dragOverMovieId !== movie.id) setDragOverMovieId(movie.id);
-            }}
-            onDrop={() => handleDrop(movie.id)}
-            onDragEnd={() => { setDraggedMovieId(null); setDragOverMovieId(null); }}
-          >
-          {/* Capa e título agora são clicáveis */}
-          <div onClick={() => handleShowDetails(movie.tmdbId)} className="movie-card-header" title="Ver Detalhes">
-            <p className="movie-title">{movie.title}</p>
-            {movie.poster ? (
-              <img src={`https://image.tmdb.org/t/p/w200${movie.poster}`} alt={movie.title} className="movie-poster" style={{ height: 'auto', aspectRatio: '2/3' }} />
-            ) : (
-              <div className="movie-poster-placeholder" style={{ height: 'auto', aspectRatio: '2/3' }}><span>Sem capa</span></div>
-            )}
-          </div>
-          
-          <label className="checkbox-label">
-            <input type="checkbox" checked={movie.watched} onChange={(e) => handleUpdateMovie(movie.id, { watched: e.target.checked })} />
-            <span className="toggle-switch"></span>
-            Já assisti
-          </label>
-
-          {streamerMode && (
-            <label className="input-label">
-              Resgatado por:
-              <input
-                type="text"
-                placeholder="Ninguém"
-                value={drafts[movie.id]?.requestedBy ?? movie.requestedBy ?? ''}
-                onChange={(e) => setDrafts(prev => ({ ...prev, [movie.id]: { ...prev[movie.id], requestedBy: e.target.value } }))}
-                onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                onBlur={(e) => {
-                  if (drafts[movie.id]?.requestedBy !== undefined) {
-                    handleUpdateMovie(movie.id, { requestedBy: e.target.value });
-                    // Limpa o rascunho após salvar para sincronizar com os dados reais
-                    setDrafts(prev => ({ ...prev, [movie.id]: { ...prev[movie.id], requestedBy: undefined } }));
-                  }
-                }}
-              />
-            </label>
-          )}
-          
-          {(streamerMode || movie.watched) && (
-            <label className="input-label" style={{ marginBottom: '15px' }}>
-              {streamerMode ? 'Agendado para:' : 'Data que assistiu:'}
-              <input
-                type="date"
-                value={movie.watchDate ? new Date(movie.watchDate).toISOString().split('T')[0] : ''}
-                onChange={(e) => handleUpdateMovie(movie.id, { watchDate: e.target.value ? new Date(e.target.value).toISOString() : null })}
-              />
-            </label>
-          )}
-
-          <div className="ratings-container">
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
-              <label className="input-label" style={{ width: streamerMode ? '50%' : '100%' }}>
-                Minha Nota:
-                <input 
-                  type="number" min="0" max="10" step="0.01" 
-                  value={drafts[movie.id]?.streamerRating ?? movie.streamerRating ?? ''} 
-                  onChange={(e) => setDrafts(prev => ({ ...prev, [movie.id]: { ...prev[movie.id], streamerRating: e.target.value.replace(',', '.') } }))} 
-                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                  onBlur={(e) => {
-                    if (drafts[movie.id]?.streamerRating !== undefined) {
-                      let val = e.target.value ? parseFloat(e.target.value.replace(',', '.')) : null;
-                      if (val !== null) {
-                        if (val < 0) val = 0;
-                        if (val > 10) val = 10;
-                        val = parseFloat(val.toFixed(2)); // Limita a 2 casas decimais no máximo
-                      }
-                      handleUpdateMovie(movie.id, { streamerRating: val });
-                      setDrafts(prev => ({ ...prev, [movie.id]: { ...prev[movie.id], streamerRating: undefined } }));
-                    }
-                  }} 
-                />
-              </label>
-              {streamerMode && (
-                <label className="input-label" style={{ width: '50%' }}>
-                  Nota Chat:
-                  <input 
-                    type="number" min="0" max="10" step="0.01" 
-                    value={drafts[movie.id]?.chatRating ?? movie.chatRating ?? ''} 
-                    onChange={(e) => setDrafts(prev => ({ ...prev, [movie.id]: { ...prev[movie.id], chatRating: e.target.value.replace(',', '.') } }))} 
-                    onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                    onBlur={(e) => {
-                      if (drafts[movie.id]?.chatRating !== undefined) {
-                        let val = e.target.value ? parseFloat(e.target.value.replace(',', '.')) : null;
-                        if (val !== null) {
-                          if (val < 0) val = 0;
-                          if (val > 10) val = 10;
-                          val = parseFloat(val.toFixed(2)); // Limita a 2 casas decimais no máximo
-                        }
-                        handleUpdateMovie(movie.id, { chatRating: val });
-                        setDrafts(prev => ({ ...prev, [movie.id]: { ...prev[movie.id], chatRating: undefined } }));
-                      }
-                    }} 
-                  />
-                </label>
-              )}
-            </div>
-          </div>
-
-          <button onClick={() => handleDeleteMovie(movie.id)} className="btn-danger" style={{ marginTop: 'auto' }}>Deletar Filme</button>
-          </div>
+        <div className="movies-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', width: '100%', maxWidth: '100%', gap: '20px', marginTop: '0' }}>
+        {currentMovies.length === 0 ? <p>Nenhum filme encontrado para este filtro.</p> : currentMovies.map((movie: any) => (
+          <MovieCardItem 
+            key={movie.id} movie={movie} onUpdate={handleUpdateMovie} onDelete={handleDeleteMovie}
+            onShowDetails={handleShowDetails} sortBy={sortBy} draggedMovieId={draggedMovieId} dragOverMovieId={dragOverMovieId}
+            setDraggedMovieId={setDraggedMovieId} setDragOverMovieId={setDragOverMovieId} onDrop={handleDrop} streamerMode={streamerMode}
+          />
         ))}
         </div>
       )}

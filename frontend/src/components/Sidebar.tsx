@@ -26,7 +26,7 @@ export default function Sidebar({ view, handleNavigation, user, handleLogout, st
         <button className={`sidebar-btn ${view === 'saved' ? 'active' : ''}`} onClick={() => handleNavigation('saved')}>🎬 Meus Filmes</button>
         <button className={`sidebar-btn ${view === 'dashboard' ? 'active' : ''}`} onClick={() => handleNavigation('dashboard')}>📊 Dashboard</button>
         <button className={`sidebar-btn ${view === 'settings' ? 'active' : ''}`} onClick={() => handleNavigation('settings')}>⚙️ Configurações</button>
-        {user?.email === 'admin@sumasmovie.com' && (
+        {user?.isAdmin && (
           <button className={`sidebar-btn ${view === 'register' ? 'active' : ''}`} onClick={() => handleNavigation('register')}>👥 Criar Usuário</button>
         )}
       </nav>

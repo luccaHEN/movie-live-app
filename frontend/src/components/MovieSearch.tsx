@@ -236,7 +236,7 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
         <button type="button" className="btn-secondary" onClick={handleClearSearch}>Limpar / Populares</button>
       </form>
       
-        <div className="movies-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', width: '100%', maxWidth: '100%', gap: '20px' }}>
+        <div className="movies-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', width: '100%', maxWidth: '100%', gap: '20px' }}>
           {displayedMovies.length === 0 && (searchQuery.trim() !== '' || selectedGenre !== '') && !isLoading ? (
             <p style={{ gridColumn: '1 / -1', textAlign: 'center', marginTop: '20px', color: '#aaa' }}>Nenhum filme encontrado com esse filtro 😥</p>
           ) : displayedMovies.map(movie => (

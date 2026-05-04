@@ -29,6 +29,11 @@ model Movie {
 
   // Garante que O MESMO usuário não salve O MESMO filme duas vezes
   @@unique([tmdbId, userId])
+
+  // Índices de performance para acelerar filtros e estatísticas do Dashboard
+  @@index([userId])
+  @@index([watchDate])
+  @@index([watched])
 }
 
 model Session {
@@ -57,6 +62,7 @@ model User {
   password String
   name     String?
   avatar   String?
+  isAdmin  Boolean @default(false)
   
   // Relacionamento inverso
   movies   Movie[]
