@@ -12,7 +12,7 @@ interface SidebarProps {
 export default function Sidebar({ view, handleNavigation, user, handleLogout, streamerMode, stats, setShowBestMoviesModal, setShowTopRescuersModal }: SidebarProps) {
   return (
     <aside className="sidebar">
-      <h1 className="sidebar-title" onClick={() => handleNavigation('search')} style={{ cursor: 'pointer' }}>Sumasflix</h1>
+      <h1 className="sidebar-title" onClick={() => handleNavigation('home')} style={{ cursor: 'pointer' }}>Sumasflix</h1>
 
       {user && (
         <div className="user-profile">
