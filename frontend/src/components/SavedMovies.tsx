@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import MovieDetailsModal from './MovieDetailsModal';
+import Modal from './Modal';
 
 interface SavedMoviesProps {
   token: string;
@@ -13,22 +14,51 @@ const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, so
   const [requestedBy, setRequestedBy] = useState(movie.requestedBy || '');
   const [streamerRating, setStreamerRating] = useState(movie.streamerRating ?? '');
   const [chatRating, setChatRating] = useState(movie.chatRating ?? '');
+  const [isEditing, setIsEditing] = useState(false);
+  const [watchDate, setWatchDate] = useState(movie.watchDate ? new Date(movie.watchDate).toISOString().split('T')[0] : '');
 
   // Sincroniza estados locais caso ocorra alguma alteração externa via Drag & Drop
   useEffect(() => setRequestedBy(movie.requestedBy || ''), [movie.requestedBy]);
   useEffect(() => setStreamerRating(movie.streamerRating ?? ''), [movie.streamerRating]);
   useEffect(() => setChatRating(movie.chatRating ?? ''), [movie.chatRating]);
+  useEffect(() => setWatchDate(movie.watchDate ? new Date(movie.watchDate).toISOString().split('T')[0] : ''), [movie.watchDate]);
+
+  const handleSaveEdit = () => {
+    const updates: any = {};
+    if (requestedBy !== (movie.requestedBy || '')) {
+      updates.requestedBy = requestedBy.trim() || null;
+    }
+    const currentWatchDateStr = movie.watchDate ? new Date(movie.watchDate).toISOString().split('T')[0] : '';
+    if (watchDate !== currentWatchDateStr) {
+      updates.watchDate = watchDate ? new Date(watchDate).toISOString() : null;
+    }
+    if (Object.keys(updates).length > 0) {
+      onUpdate(movie.id, updates);
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setRequestedBy(movie.requestedBy || '');
+    setWatchDate(movie.watchDate ? new Date(movie.watchDate).toISOString().split('T')[0] : '');
+    setIsEditing(false);
+  };
 
   return (
-    <div 
-      className={`movie-card ${sortBy === 'DATE' ? 'draggable-card' : ''} ${draggedMovieId === movie.id ? 'dragging' : ''} ${dragOverMovieId === movie.id ? 'drag-over' : ''}`} 
-      style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}
-      draggable={sortBy === 'DATE'}
-      onDragStart={() => setDraggedMovieId(movie.id)}
-      onDragOver={(e) => { e.preventDefault(); if (dragOverMovieId !== movie.id) setDragOverMovieId(movie.id); }}
-      onDrop={() => onDrop(movie.id)}
-      onDragEnd={() => { setDraggedMovieId(null); setDragOverMovieId(null); }}
-    >
+    <>
+      <div 
+        className={`movie-card ${sortBy === 'DATE' ? 'draggable-card' : ''} ${draggedMovieId === movie.id ? 'dragging' : ''} ${dragOverMovieId === movie.id ? 'drag-over' : ''}`} 
+        style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}
+        draggable={sortBy === 'DATE'}
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', movie.id.toString());
+          setDraggedMovieId(movie.id);
+        }}
+        onDragOver={(e) => { e.preventDefault(); if (dragOverMovieId !== movie.id) setDragOverMovieId(movie.id); }}
+        onDrop={(e) => onDrop(e, movie.id)}
+        onDragEnd={() => { setDraggedMovieId(null); setDragOverMovieId(null); }}
+      >
       <div onClick={() => onShowDetails(movie.tmdbId)} className="movie-card-header" title="Ver Detalhes">
         <p className="movie-title">{movie.title}</p>
         {movie.poster ? (
@@ -38,25 +68,28 @@ const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, so
         )}
       </div>
       
-      <label className="checkbox-label">
-        <input type="checkbox" checked={movie.watched} onChange={(e) => onUpdate(movie.id, { watched: e.target.checked })} />
-        <span className="toggle-switch"></span>
-        Já assisti
-      </label>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '10px 0' }}>
+        <label className="checkbox-label" style={{ margin: 0 }}>
+          <input type="checkbox" checked={movie.watched} onChange={(e) => onUpdate(movie.id, { watched: e.target.checked })} />
+          <span className="toggle-switch"></span>
+          Já assisti
+        </label>
+        <span style={{ color: isEditing ? 'var(--primary)' : '#666', cursor: 'pointer', fontSize: '1.1rem', lineHeight: '1' }} onClick={() => isEditing ? handleCancelEdit() : setIsEditing(true)} title="Editar informações">✏️</span>
+      </div>
 
-      {streamerMode && (
-        <label className="input-label">
-          Resgatado por:
-          <input type="text" placeholder="Ninguém" value={requestedBy} onChange={(e) => setRequestedBy(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={() => { if (requestedBy !== (movie.requestedBy || '')) onUpdate(movie.id, { requestedBy: requestedBy.trim() || null }); }} />
-        </label>
-      )}
-      
-      {(streamerMode || movie.watched) && (
-        <label className="input-label" style={{ marginBottom: '15px' }}>
-          {streamerMode ? 'Agendado para:' : 'Data que assistiu:'}
-          <input type="date" value={movie.watchDate ? new Date(movie.watchDate).toISOString().split('T')[0] : ''} onChange={(e) => onUpdate(movie.id, { watchDate: e.target.value ? new Date(e.target.value).toISOString() : null })} />
-        </label>
-      )}
+      <div style={{ marginBottom: '15px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {streamerMode && movie.requestedBy && (
+          <div style={{ fontSize: '0.85rem', color: '#aaa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            Resgate: <strong style={{ color: 'var(--primary)' }}>{movie.requestedBy}</strong>
+          </div>
+        )}
+        {(streamerMode || movie.watched) && movie.watchDate && (
+          <div style={{ fontSize: '0.85rem', color: '#aaa' }}>
+            {streamerMode ? 'Agendado: ' : 'Assistido: '}
+            <strong style={{ color: '#10b981' }}>{new Date(movie.watchDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</strong>
+          </div>
+        )}
+      </div>
 
       <div className="ratings-container">
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
@@ -85,7 +118,28 @@ const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, so
         </div>
       </div>
       <button onClick={() => onDelete(movie.id)} className="btn-danger" style={{ marginTop: 'auto' }}>Deletar Filme</button>
-    </div>
+      </div>
+
+      <Modal isOpen={isEditing} onClose={handleCancelEdit} maxWidth="400px">
+        <h2 style={{ marginTop: 0, color: 'var(--primary)', marginBottom: '20px', textAlign: 'center' }}>✏️ Editar Filme</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', textAlign: 'left' }}>
+          {streamerMode && (
+            <label className="input-label" style={{ margin: 0, fontSize: '0.9rem' }}>
+              Resgatado por:
+              <input type="text" placeholder="Ninguém" value={requestedBy} onChange={(e) => setRequestedBy(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveEdit(); } }} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-color)', color: 'var(--text-color)', marginTop: '5px', outline: 'none' }} />
+            </label>
+          )}
+          <label className="input-label" style={{ margin: 0, fontSize: '0.9rem' }}>
+            {streamerMode ? 'Agendado para:' : 'Data que assistiu:'}
+            <input type="date" value={watchDate} onChange={(e) => setWatchDate(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-color)', color: 'var(--text-color)', marginTop: '5px', outline: 'none' }} />
+          </label>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+            <button onClick={handleSaveEdit} className="btn-primary" style={{ flex: 1, margin: 0 }}>Salvar</button>
+            <button onClick={handleCancelEdit} className="btn-secondary" style={{ flex: 1, margin: 0 }}>Cancelar</button>
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 });
 
@@ -247,14 +301,17 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
     });
 
   // Lógica de Drag & Drop para reordenar filmes no mesmo dia
-  const handleDrop = async (targetId: number) => {
-    if (!draggedMovieId || draggedMovieId === targetId) {
+  const handleDrop = async (e: React.DragEvent, targetId: number) => {
+    e.preventDefault();
+    const draggedId = parseInt(e.dataTransfer.getData('text/plain'), 10);
+
+    if (!draggedId || draggedId === targetId) {
       setDraggedMovieId(null);
       setDragOverMovieId(null);
       return;
     }
 
-    const draggedMovie = savedMovies.find((m: any) => m.id === draggedMovieId);
+    const draggedMovie = savedMovies.find((m: any) => m.id === draggedId);
     const targetMovie = savedMovies.find((m: any) => m.id === targetId);
     if (!draggedMovie || !targetMovie) return;
 
@@ -267,9 +324,9 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
       return mDate === baseDateString;
     });
 
-    const otherMovies = moviesOnSameDay.filter((m: any) => m.id !== draggedMovieId);
+    const otherMovies = moviesOnSameDay.filter((m: any) => m.id !== draggedId);
     const targetIndex = otherMovies.findIndex((m: any) => m.id === targetId);
-    const originalDraggedIndex = filteredMovies.findIndex((m: any) => m.id === draggedMovieId);
+    const originalDraggedIndex = filteredMovies.findIndex((m: any) => m.id === draggedId);
     const originalTargetIndex = filteredMovies.findIndex((m: any) => m.id === targetId);
 
     let insertIndex = targetIndex;

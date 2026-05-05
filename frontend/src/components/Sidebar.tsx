@@ -22,6 +22,7 @@ export default function Sidebar({ view, handleNavigation, user, handleLogout, st
       )}
 
       <nav className="sidebar-nav">
+        <button className={`sidebar-btn ${view === 'home' ? 'active' : ''}`} onClick={() => handleNavigation('home')}>🏠 Início</button>
         <button className={`sidebar-btn ${view === 'search' ? 'active' : ''}`} onClick={() => handleNavigation('search')}>🔍 Buscar Filmes</button>
         <button className={`sidebar-btn ${view === 'saved' ? 'active' : ''}`} onClick={() => handleNavigation('saved')}>🎬 Meus Filmes</button>
         <button className={`sidebar-btn ${view === 'dashboard' ? 'active' : ''}`} onClick={() => handleNavigation('dashboard')}>📊 Dashboard</button>

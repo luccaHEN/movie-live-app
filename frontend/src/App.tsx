@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import api from './services/api';
 import Login from './components/Login';
+import Home from './components/Home';
 import MovieSearch from './components/MovieSearch';
 import SavedMovies from './components/SavedMovies';
 import Settings from './components/Settings';
@@ -15,7 +16,7 @@ import Podium from './components/Podium';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
-  const [view, setView] = useState<'search' | 'saved' | 'dashboard' | 'settings' | 'register'>('search');
+  const [view, setView] = useState<'home' | 'search' | 'saved' | 'dashboard' | 'settings' | 'register'>('home');
   const [user, setUser] = useState<any>(null);
   const [streamerMode, setStreamerMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('streamerMode');
@@ -35,7 +36,7 @@ export default function App() {
     localStorage.removeItem('token');
     setToken('');
     setUser(null);
-    setView('search'); // Volta para a tela padrão (Buscar Filmes) ao deslogar
+    setView('home'); // Volta para a tela padrão (Início) ao deslogar
   };
 
   useEffect(() => {
@@ -87,6 +88,7 @@ export default function App() {
         />
         
         <main className="main-content">
+          {view === 'home' && <Home token={token} streamerMode={streamerMode} user={user} />}
           {view === 'search' && <MovieSearch token={token} streamerMode={streamerMode} />}
           {view === 'saved' && <SavedMovies token={token} streamerMode={streamerMode} />}
           {view === 'dashboard' && <Dashboard token={token} username={user?.name} streamerMode={streamerMode} user={user} />}
