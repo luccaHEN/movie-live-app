@@ -37,6 +37,12 @@ export default function HallOfTrash({ isOpen, onClose, movies, token, onUpdate }
     return Array.from(months).sort((a, b) => b.localeCompare(a));
   }, [allTrash]);
 
+  const isAbsoluteWorst = (movie: any, group: any) => {
+    if (movie.isTrash) return true; // Se já estiver salvo no banco
+    if (group.tiedForLowest.length === 1 && movie.streamerRating === group.minRating) return true; // É o único com a pior nota
+    return false;
+  };
+
   const { groupedTrash, overallTopCulprit } = useMemo(() => {
     const groups: Record<string, any> = {};
     const culprits: Record<string, number> = {};
@@ -73,6 +79,15 @@ export default function HallOfTrash({ isOpen, onClose, movies, token, onUpdate }
       });
       group.tiedForLowest = group.movies.filter((m: any) => m.streamerRating === group.minRating);
       group.hasChosenTrashInTies = group.tiedForLowest.some((m: any) => m.isTrash);
+
+      // Ordena para que o pior filme (eleito ou único) fique em primeiro
+      group.movies.sort((a: any, b: any) => {
+        const aIsWorst = isAbsoluteWorst(a, group);
+        const bIsWorst = isAbsoluteWorst(b, group);
+        if (aIsWorst && !bIsWorst) return -1;
+        if (bIsWorst && !aIsWorst) return 1;
+        return (a.streamerRating || 0) - (b.streamerRating || 0);
+      });
     });
 
     let tops: string[] = [];
@@ -89,12 +104,6 @@ export default function HallOfTrash({ isOpen, onClose, movies, token, onUpdate }
 
     return { groupedTrash: groups, overallTopCulprit: top };
   }, [allTrash, selectedMonthFilter]);
-
-  const isAbsoluteWorst = (movie: any, group: any) => {
-    if (movie.isTrash) return true; // Se já estiver salvo no banco
-    if (group.tiedForLowest.length === 1 && movie.streamerRating === group.minRating) return true; // É o único com a pior nota
-    return false;
-  };
 
   if (!isOpen) return null;
 
