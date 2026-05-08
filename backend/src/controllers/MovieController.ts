@@ -79,7 +79,7 @@ export class MovieController {
 
   async update(req: Request, res: Response): Promise<Response | any> {
     const { id } = req.params;
-    const { watchDate, streamerRating, chatRating, watched, requestedBy, isChampion } = req.body;
+    const { watchDate, streamerRating, chatRating, watched, requestedBy, isChampion, isTrash } = req.body;
     const userId = (req as any).userId;
 
     try {
@@ -101,6 +101,7 @@ export class MovieController {
           watched,
           requestedBy,
           isChampion,
+          isTrash,
         }
       });
       return res.json(updatedMovie);

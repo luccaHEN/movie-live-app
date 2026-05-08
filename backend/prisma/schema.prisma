@@ -24,6 +24,7 @@ model Movie {
   chatRating     Float?
   requestedBy    String?   // Nick de quem resgatou o filme
   isChampion     Boolean   @default(false)
+  isTrash        Boolean   @default(false)
 
   sessions Session[]
 

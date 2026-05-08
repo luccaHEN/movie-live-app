@@ -4,6 +4,8 @@ import toast from 'react-hot-toast';
 import Modal from './Modal';
 import Podium from './Podium';
 import RouletteModal from './RouletteModal';
+import HallOfFame from './HallOfFame';
+import HallOfTrash from './HallOfTrash';
 
 interface DashboardProps {
   token: string;
@@ -23,6 +25,8 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
   const [isLoadingGenres, setIsLoadingGenres] = useState(false);
   const [championModalMonth, setChampionModalMonth] = useState<string | null>(null);
   const [expandedChart, setExpandedChart] = useState(false);
+  const [showHallOfFame, setShowHallOfFame] = useState(false);
+  const [showHallOfTrash, setShowHallOfTrash] = useState(false);
 
   const fetchMovies = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
@@ -127,10 +131,12 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: '20px', maxWidth: '1100px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '10px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '10px', flexWrap: 'wrap', gap: '15px' }}>
         <h2 style={{ color: 'var(--primary)', margin: '0' }}>Estatísticas da Stream 📊</h2>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={() => setShowRoulette(true)} className="btn-secondary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto', backgroundColor: '#8b5cf6', borderColor: '#8b5cf6', color: '#fff' }}>🎲 Sortear Filme</button>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button onClick={() => setShowHallOfFame(true)} className="btn-secondary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto', backgroundColor: '#fbbf24', borderColor: '#fbbf24', color: '#000', fontWeight: 'bold' }}>🏆 Hall da Fama</button>
+          <button onClick={() => setShowHallOfTrash(true)} className="btn-secondary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto', backgroundColor: '#3f6212', borderColor: '#4d7c0f', color: '#fff', fontWeight: 'bold' }}>🗑️ Hall do Lixo</button>
+          <button onClick={() => setShowRoulette(true)} className="btn-secondary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto', backgroundColor: '#8b5cf6', borderColor: '#8b5cf6', color: '#fff' }}>🎲 Roleta</button>
           {streamerMode && (
             <button onClick={handleCopyPublicLink} className="btn-primary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto' }}>🔗 Copiar Link Agenda</button>
           )}
@@ -451,6 +457,9 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
       </Modal>
 
       <RouletteModal isOpen={showRoulette} onClose={() => setShowRoulette(false)} token={token} streamerMode={streamerMode} fetchMovies={fetchMovies} savedMovies={rawMoviesForGenre} />
+      
+      <HallOfFame isOpen={showHallOfFame} onClose={() => setShowHallOfFame(false)} movies={rawMoviesForGenre} champions={champions} token={token} onUpdate={() => { fetchMovies(true); window.dispatchEvent(new Event('moviesUpdated')); }} />
+      <HallOfTrash isOpen={showHallOfTrash} onClose={() => setShowHallOfTrash(false)} movies={rawMoviesForGenre} token={token} onUpdate={() => { fetchMovies(true); window.dispatchEvent(new Event('moviesUpdated')); }} />
     </div>
   );
 }

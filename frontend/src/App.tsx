@@ -125,9 +125,6 @@ export default function App() {
             {!champion ? (
               <>
                 <h2 style={{ marginBottom: '10px', color: '#fbbf24' }}>⭐ Desempate do Melhor Filme</h2>
-                <p style={{ marginBottom: '20px', color: '#aaa', fontSize: '0.9rem' }}>
-                  Temos {stats.bestMovies.length} filmes com nota {stats.bestMovies[0]?.streamerRating}! Escolha o grande campeão:
-                </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                   {stats.bestMovies.map((movie: any) => (
                     <div key={movie.id} style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '10px', border: '1px solid var(--input-border)', borderRadius: '8px' }}>
