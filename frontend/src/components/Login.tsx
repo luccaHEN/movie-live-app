@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import bgImage from '../assets/login.jpg';
@@ -15,6 +15,24 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const carouselImages = [print1, print2, print3];
+
+  const handlePrevImage = () => {
+    setCurrentImageIndex((prev) => (prev === 0 ? carouselImages.length - 1 : prev - 1));
+  };
+
+  const handleNextImage = () => {
+    setCurrentImageIndex((prev) => (prev === carouselImages.length - 1 ? 0 : prev + 1));
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev === carouselImages.length - 1 ? 0 : prev + 1));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [carouselImages.length]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,10 +110,37 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         <h2 style={{ color: 'var(--primary)', fontSize: '2.5rem', marginBottom: '15px', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center' }}>Por dentro do App</h2>
         <p style={{ color: '#aaa', fontSize: '1.1rem', marginBottom: '50px', maxWidth: '800px', textAlign: 'center', lineHeight: '1.5' }}>Confira algumas capturas de tela mostrando as principais funcionalidades e a interface da plataforma em ação.</p>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '40px', width: '100%', maxWidth: '1400px' }}>
-          <img src={print1} alt="Print 1 - Dashboard" onClick={() => setSelectedImage(print1)} style={{ width: '100%', borderRadius: '12px', boxShadow: '0 10px 20px rgba(0,0,0,0.5)', border: '1px solid #333', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'} />
-          <img src={print2} alt="Print 2 - Roleta" onClick={() => setSelectedImage(print2)} style={{ width: '100%', borderRadius: '12px', boxShadow: '0 10px 20px rgba(0,0,0,0.5)', border: '1px solid #333', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'} />
-          <img src={print3} alt="Print 3 - Hall da Fama" onClick={() => setSelectedImage(print3)} style={{ width: '100%', borderRadius: '12px', boxShadow: '0 10px 20px rgba(0,0,0,0.5)', border: '1px solid #333', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'} />
+        <div style={{ position: 'relative', width: '100%', maxWidth: '1000px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          
+          {/* Contêiner da Imagem do Carrossel */}
+          <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px' }}>
+            <button onClick={handlePrevImage} style={{ flexShrink: 0, background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: '50px', height: '50px', cursor: 'pointer', fontSize: '1.5rem', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s, transform 0.2s' }} onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.transform = 'scale(1.1)'; }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.7)'; e.currentTarget.style.transform = 'scale(1)'; }}>&#10094;</button>
+            
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+              <img 
+                src={carouselImages[currentImageIndex]} 
+                alt={`Print do sistema ${currentImageIndex + 1}`} 
+                onClick={() => setSelectedImage(carouselImages[currentImageIndex])}
+                style={{ width: '100%', maxHeight: '65vh', objectFit: 'contain', borderRadius: '12px', boxShadow: '0 15px 40px rgba(0,0,0,0.8)', border: '1px solid #333', cursor: 'zoom-in', transition: 'transform 0.3s ease' }} 
+                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.01)'} 
+                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+              />
+            </div>
+
+            <button onClick={handleNextImage} style={{ flexShrink: 0, background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: '50px', height: '50px', cursor: 'pointer', fontSize: '1.5rem', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s, transform 0.2s' }} onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.transform = 'scale(1.1)'; }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.7)'; e.currentTarget.style.transform = 'scale(1)'; }}>&#10095;</button>
+          </div>
+          
+          {/* Indicadores (Bolinhas) */}
+          <div style={{ display: 'flex', gap: '12px', marginTop: '25px' }}>
+            {carouselImages.map((_, index) => (
+              <div 
+                key={index} 
+                onClick={() => setCurrentImageIndex(index)}
+                style={{ width: '15px', height: '15px', borderRadius: '50%', backgroundColor: currentImageIndex === index ? 'var(--primary)' : '#444', cursor: 'pointer', transition: 'background-color 0.2s, transform 0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.5)', transform: currentImageIndex === index ? 'scale(1.2)' : 'scale(1)' }}
+              />
+            ))}
+          </div>
+
         </div>
       </div>
 
