@@ -176,10 +176,6 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
         toast.error('Por favor, preencha quem resgatou o filme.');
         return;
       }
-      if (!draft.watchDate) {
-        toast.error('Por favor, selecione uma data para assistir o filme.');
-        return;
-      }
     }
 
     const movieGenres = movie.genre_ids ? movie.genre_ids.map((id: number) => TMDB_GENRES[id]).filter(Boolean).join(', ') : "Desconhecido";
@@ -194,7 +190,7 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
 
     if (streamerMode) {
       payload.requestedBy = draft.requestedBy?.trim() || '';
-      payload.watchDate = draft.watchDate;
+      payload.watchDate = draft.watchDate || null;
     }
 
     try {

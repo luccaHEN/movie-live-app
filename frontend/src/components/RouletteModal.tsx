@@ -147,12 +147,11 @@ export default function RouletteModal({ isOpen, onClose, token, streamerMode, fe
 
   const handleSaveDrawnMovie = async () => {
     if (!drawnMovie) return;
-    if (streamerMode && !rouletteWatchDate) return toast.error('Por favor, selecione uma data para assistir o filme.');
 
     try {
       await api.post('/movies', {
         title: drawnMovie.title, tmdbId: drawnMovie.id, poster: drawnMovie.poster_path, genre: "N/A",
-        ...(streamerMode ? { requestedBy: 'Chat', watchDate: new Date(rouletteWatchDate).toISOString() } : {})
+        ...(streamerMode ? { requestedBy: 'Chat', watchDate: rouletteWatchDate ? new Date(rouletteWatchDate).toISOString() : null } : {})
       }, { headers: { Authorization: `Bearer ${token}` } });
       toast.success(`Filme "${drawnMovie.title}" salvo!`);
       onClose();
