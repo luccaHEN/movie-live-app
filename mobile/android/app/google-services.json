@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "449063547919",
+    "project_id": "sumasflix",
+    "storage_bucket": "sumasflix.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:449063547919:android:1220c90c026117689ddf7a",
+        "android_client_info": {
+          "package_name": "com.example.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3ar4sj_MuXvIqYMYF9Sn7VwfiCfNWi7Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
