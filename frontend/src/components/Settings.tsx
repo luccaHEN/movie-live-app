@@ -50,7 +50,7 @@ export default function Settings({ token, user, setUser, streamerMode, setStream
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await api.put('/profile', { name, avatar }, {
+      const response = await api.put('/profile', { name, avatar, isStreamerMode: streamerMode }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUser(response.data); // Atualiza o usuário global (o menu lateral vai mudar na hora)
