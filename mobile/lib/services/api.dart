@@ -9,9 +9,8 @@ final StreamController<void> refreshStreamController = StreamController<void>.br
 // mesmo sem ter acesso a um BuildContext.
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-// ATENÇÃO: Substitua o IP abaixo pelo IPv4 da sua máquina na rede local!
-// Exemplo: 'http://192.168.1.15:3333'
-const String baseUrl = 'http://192.168.0.4:3333'; 
+// const String baseUrl = 'http://192.168.0.4:3333'; // IP Local (Comente para usar Prod)
+const String baseUrl = 'https://movie-live-api.onrender.com'; // Produção Render
 
 final Dio api = Dio(
   BaseOptions(
