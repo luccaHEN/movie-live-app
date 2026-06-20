@@ -3,6 +3,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { prisma } from './prisma';
 import { routes } from './routes';
+import { initCronJobs } from './cron';
 
 const app = express();
 
@@ -15,7 +16,7 @@ const allowedOrigins = [
 app.use(cors({
   origin: allowedOrigins
 }));
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '10mb' })); // Aumentamos para 10MB por segurança
 
 // Rota pública de teste para garantir que a API está no ar (Usada pelo Cron-job)
 app.get('/', (req: Request, res: Response) => {
@@ -30,6 +31,10 @@ const PORT = process.env.PORT || 3333;
 app.listen(PORT, async () => {
   // Tenta conectar ao banco para confirmar que está tudo ok
   await prisma.$connect();
+  
+  // Inicia as rotinas em segundo plano (Despertador)
+  initCronJobs();
+  
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log('📦 Conectado ao banco de dados com sucesso!');
 });

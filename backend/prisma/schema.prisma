@@ -64,6 +64,10 @@ model User {
   name     String?
   avatar   String?
   isAdmin  Boolean @default(false)
+  oneSignalPlayerId String? @unique
+  followedStreamer String?
+  followedStreamersList String[] @default([])
+  isStreamerMode Boolean @default(false)
   
   // Relacionamento inverso
   movies   Movie[]

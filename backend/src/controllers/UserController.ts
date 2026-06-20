@@ -8,7 +8,7 @@ export class UserController {
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { id: true, email: true, name: true, avatar: true, isAdmin: true } as any
+        select: { id: true, email: true, name: true, avatar: true, isAdmin: true, followedStreamer: true, followedStreamersList: true, isStreamerMode: true } as any
       });
       return res.json(user);
     } catch (error) {
@@ -19,12 +19,12 @@ export class UserController {
   // Atualiza o nome e a foto do usuário logado
   async updateProfile(req: Request, res: Response): Promise<Response | any> {
     const userId = (req as any).userId;
-    const { name, avatar } = req.body;
+    const { name, avatar, followedStreamer, isStreamerMode } = req.body;
     try {
       const user = await prisma.user.update({
         where: { id: userId },
-        data: { name, avatar },
-        select: { id: true, email: true, name: true, avatar: true, isAdmin: true } as any
+        data: { name, avatar, followedStreamer, isStreamerMode },
+        select: { id: true, email: true, name: true, avatar: true, isAdmin: true, followedStreamer: true, followedStreamersList: true, isStreamerMode: true } as any
       });
       return res.json(user);
     } catch (error) {

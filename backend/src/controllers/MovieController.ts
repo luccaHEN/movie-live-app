@@ -2,6 +2,41 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 import { prisma } from '../prisma';
 
+async function sendPushToFollowers(streamerName: string, title: string, message: string, extraData: any = {}) {
+  if (!process.env.ONESIGNAL_APP_ID || !process.env.ONESIGNAL_REST_API_KEY) return;
+
+  try {
+    const followers = await prisma.user.findMany({
+      where: {
+        followedStreamersList: { has: streamerName }
+      }
+    });
+
+    const playerIds = followers
+      .map(f => f.oneSignalPlayerId)
+      .filter((id): id is string => id != null && id !== '');
+
+    if (playerIds.length === 0) return;
+
+    const appId = process.env.ONESIGNAL_APP_ID.replace(/["']/g, '').trim();
+    const apiKey = process.env.ONESIGNAL_REST_API_KEY.replace(/["']/g, '').trim();
+
+    await axios.post(
+      'https://onesignal.com/api/v1/notifications',
+      {
+        app_id: appId,
+        include_player_ids: playerIds,
+        headings: { "en": title, "pt": title },
+        contents: { "en": message, "pt": message },
+        data: { streamerName: streamerName, ...extraData }
+      },
+      { headers: { Authorization: `Basic ${apiKey}`, 'Accept': 'application/json', 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('Erro ao enviar push via OneSignal:', error);
+  }
+}
+
 export class MovieController {
   async search(req: Request, res: Response): Promise<Response | any> {
     const { query, page = 1 } = req.query;
@@ -70,6 +105,18 @@ export class MovieController {
           }
         });
       }
+      
+      // Envia notificação para seguidores
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (user && user.name) {
+        await sendPushToFollowers(
+          user.name,
+          'Novo filme na agenda! 🎬',
+          `${user.name} adicionou "${movie.title}" à agenda de lives!`,
+          { movieTitle: movie.title, isWatched: false }
+        );
+      }
+
       return res.status(201).json(movie);
     } catch (error: any) {
       console.error('Erro detalhado ao salvar no Prisma:', error);
@@ -104,6 +151,27 @@ export class MovieController {
           isTrash,
         }
       });
+
+      // Envia notificação de alteração para seguidores
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (user && user.name && existingMovie) {
+        if (watched && !existingMovie.watched) {
+          await sendPushToFollowers(
+            user.name,
+            'Filme Assistido! ✅',
+            `${user.name} acabou de assistir "${updatedMovie.title}"!`,
+            { movieTitle: updatedMovie.title, isWatched: true }
+          );
+        } else if (watchDate && existingMovie.watchDate !== watchDate) {
+          await sendPushToFollowers(
+            user.name,
+            'Agenda Atualizada 📅',
+            `${user.name} alterou a data de "${updatedMovie.title}".`,
+            { movieTitle: updatedMovie.title, isWatched: existingMovie.watched }
+          );
+        }
+      }
+
       return res.json(updatedMovie);
     } catch (error: any) {
       return res.status(500).json({ error: 'Erro ao atualizar o filme', details: error.message });
@@ -128,6 +196,9 @@ export class MovieController {
     try {
       const movieId = parseInt(id as string, 10); // Converte o ID para número
 
+      // Pega o nome do filme antes de deletar
+      const movieToDelete = await prisma.movie.findFirst({ where: { id: movieId, userId } });
+
       // deleteMany permite passar múltiplos filtros e checar se algo foi deletado
       const result = await prisma.movie.deleteMany({
         where: { id: movieId, userId },
@@ -135,6 +206,17 @@ export class MovieController {
 
       if (result.count === 0) {
         return res.status(404).json({ error: 'Filme não encontrado ou você não tem permissão para deletá-lo' });
+      }
+
+      if (movieToDelete) {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (user && user.name) {
+          await sendPushToFollowers(
+            user.name,
+            'Filme removido 🗑️',
+            `${user.name} retirou "${movieToDelete.title}" da agenda.`
+          );
+        }
       }
 
       // Retorna 204 No Content para indicar sucesso na exclusão sem corpo de resposta

@@ -39,6 +39,50 @@ export class AuthController {
     }
   }
 
+  // Renova o token sem exigir email/senha novamente.
+  // Aceita tokens expirados há até 30 dias (janela de graça).
+  async refreshToken(req: Request, res: Response): Promise<Response | any> {
+    const { authorization } = req.headers;
+
+    if (!authorization) {
+      return res.status(401).json({ error: 'Token não fornecido.' });
+    }
+
+    const [, token] = authorization.split(' ');
+
+    try {
+      // Tenta decodificar o token, ignorando a expiração
+      const decoded = jwt.verify(token, process.env.JWT_SECRET as string, {
+        ignoreExpiration: true,
+      }) as { id: number; isAdmin: boolean; iat: number; exp: number };
+
+      // Verifica se o token expirou há mais de 30 dias (janela de graça)
+      const now = Math.floor(Date.now() / 1000);
+      const GRACE_PERIOD_SECONDS = 30 * 24 * 60 * 60; // 30 dias
+      if (decoded.exp && (now - decoded.exp) > GRACE_PERIOD_SECONDS) {
+        return res.status(401).json({ error: 'Token expirado há muito tempo. Faça login novamente.' });
+      }
+
+      // Verifica se o usuário ainda existe no banco
+      const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+      if (!user) {
+        return res.status(401).json({ error: 'Usuário não encontrado.' });
+      }
+
+      // Gera um novo token com os dados atuais do banco
+      const newToken = jwt.sign(
+        { id: user.id, isAdmin: (user as any).isAdmin },
+        process.env.JWT_SECRET as string,
+        { expiresIn: '7d' }
+      );
+
+      return res.json({ token: newToken });
+    } catch (error) {
+      // Se o token for completamente inválido (não apenas expirado)
+      return res.status(401).json({ error: 'Token inválido. Faça login novamente.' });
+    }
+  }
+
     async register(req: Request, res: Response): Promise<Response | any> {
     const { email, password, name } = req.body;
 
