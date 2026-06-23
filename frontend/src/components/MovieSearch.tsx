@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import MovieDetailsModal from './MovieDetailsModal';
+import Modal from './Modal';
+import { ArrowUp, Star } from 'lucide-react';
 
 const TMDB_GENRES: Record<number, string> = {
   28: "Ação", 12: "Aventura", 16: "Animação", 35: "Comédia", 80: "Crime",
@@ -20,7 +22,8 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
   const [selectedGenre, setSelectedGenre] = useState('');
   const [movies, setMovies] = useState<any[]>([]);
   const [selectedMovieDetails, setSelectedMovieDetails] = useState<any | null>(null);
-  const [savedMovieIds, setSavedMovieIds] = useState<Set<number>>(new Set());
+  const [savedMoviesMap, setSavedMoviesMap] = useState<Record<number, string | number>>({});
+  const [movieToRemove, setMovieToRemove] = useState<{ id: number, title: string } | null>(null);
   const [drafts, setDrafts] = useState<Record<number, { requestedBy?: string, watchDate?: string }>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -82,7 +85,11 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
     const fetchSaved = async () => {
       try {
         const res = await api.get('/movies', { headers: { Authorization: `Bearer ${token}` } });
-        setSavedMovieIds(new Set(res.data.map((m: any) => m.tmdbId)));
+        const map: Record<number, string | number> = {};
+        res.data.forEach((m: any) => {
+          if (m.tmdbId) map[m.tmdbId] = m.id;
+        });
+        setSavedMoviesMap(map);
       } catch (e) {}
     };
     fetchSaved();
@@ -194,13 +201,39 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
     }
 
     try {
-      await api.post('/movies', payload, {
+      const res = await api.post('/movies', payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success(`Filme "${movie.title}" salvo com sucesso!`);
-      setSavedMovieIds(prev => new Set(prev).add(movie.id));
+      setSavedMoviesMap(prev => ({ ...prev, [movie.id]: res.data.id }));
+      window.dispatchEvent(new Event('moviesUpdated'));
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Erro ao salvar o filme.');
+    }
+  };
+
+  const handleRemoveMovieClick = (tmdbId: number, title: string) => {
+    setMovieToRemove({ id: tmdbId, title });
+  };
+
+  const confirmRemoveMovie = async () => {
+    if (!movieToRemove) return;
+    const dbId = savedMoviesMap[movieToRemove.id];
+    if (!dbId) return;
+    try {
+      await api.delete(`/movies/${dbId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success(`Filme "${movieToRemove.title}" removido da lista.`);
+      setSavedMoviesMap(prev => {
+        const newMap = { ...prev };
+        delete newMap[movieToRemove.id];
+        return newMap;
+      });
+      window.dispatchEvent(new Event('moviesUpdated'));
+      setMovieToRemove(null);
+    } catch (error) {
+      toast.error('Erro ao remover o filme.');
     }
   };
 
@@ -242,34 +275,61 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
               <p className="movie-title">
                 {movie.title} <span style={{ fontSize: '0.8em', color: '#aaa', fontWeight: 'normal' }}>{movie.release_date ? `(${movie.release_date.substring(0,4)})` : ''}</span>
               </p>
-              {movie.poster_path ? (
-                <img src={`https://image.tmdb.org/t/p/w200${movie.poster_path}`} alt={movie.title} className="movie-poster" style={{ height: 'auto', aspectRatio: '2/3' }} />
-              ) : (
-                <div className="movie-poster-placeholder" style={{ height: 'auto', aspectRatio: '2/3' }}><span>Sem capa</span></div>
-              )}
+              <div style={{ position: 'relative' }}>
+                {movie.poster_path ? (
+                  <img src={`https://image.tmdb.org/t/p/w200${movie.poster_path}`} alt={movie.title} className="movie-poster" style={{ height: 'auto', aspectRatio: '2/3', display: 'block' }} />
+                ) : (
+                  <div className="movie-poster-placeholder" style={{ height: 'auto', aspectRatio: '2/3' }}><span>Sem capa</span></div>
+                )}
+                {movie.vote_average > 0 && (
+                  <div style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', fontWeight: 'bold', color: '#fbbf24', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>
+                    <Star size={14} fill="#fbbf24" /> {movie.vote_average.toFixed(1)}
+                  </div>
+                )}
+              </div>
             </div>
             
-            {savedMovieIds.has(movie.id) ? (
-              <div style={{ marginTop: 'auto', textAlign: 'center', padding: '10px', backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10b981', border: '1px solid #10b981', borderRadius: '8px', fontWeight: 'bold' }}>
-                ✅ Já na lista
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: 'auto' }}>
-                {streamerMode && (
-                  <>
-                    <label className="input-label">
-                      Resgatado por:
-                      <input type="text" placeholder="Ex: viewer123" value={drafts[movie.id]?.requestedBy || ''} onChange={(e) => setDrafts({ ...drafts, [movie.id]: { ...drafts[movie.id], requestedBy: e.target.value } })} />
-                    </label>
-                    <label className="input-label">
-                      Agendar para:
-                      <input type="date" value={drafts[movie.id]?.watchDate || ''} onChange={(e) => setDrafts({ ...drafts, [movie.id]: { ...drafts[movie.id], watchDate: e.target.value } })} />
-                    </label>
-                  </>
-                )}
-                <button onClick={() => handleSaveMovie(movie)} className="btn-success" style={{ width: '100%' }}>Salvar Filme</button>
-              </div>
-            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: 'auto' }}>
+              {streamerMode && (
+                <>
+                  <label className="input-label" style={{ opacity: savedMoviesMap[movie.id] ? 0.5 : 1 }}>
+                    Resgatado por:
+                    <input 
+                      type="text" 
+                      placeholder="Ex: viewer123" 
+                      value={drafts[movie.id]?.requestedBy || ''} 
+                      onChange={(e) => setDrafts({ ...drafts, [movie.id]: { ...drafts[movie.id], requestedBy: e.target.value } })}
+                      disabled={!!savedMoviesMap[movie.id]}
+                      style={{ cursor: savedMoviesMap[movie.id] ? 'not-allowed' : 'text' }}
+                    />
+                  </label>
+                  <label className="input-label" style={{ opacity: savedMoviesMap[movie.id] ? 0.5 : 1 }}>
+                    Agendar para:
+                    <input 
+                      type="date" 
+                      value={drafts[movie.id]?.watchDate || ''} 
+                      onChange={(e) => setDrafts({ ...drafts, [movie.id]: { ...drafts[movie.id], watchDate: e.target.value } })}
+                      disabled={!!savedMoviesMap[movie.id]}
+                      style={{ cursor: savedMoviesMap[movie.id] ? 'not-allowed' : 'text' }}
+                    />
+                  </label>
+                </>
+              )}
+              {savedMoviesMap[movie.id] ? (
+                <button 
+                  onClick={() => handleRemoveMovieClick(movie.id, movie.title)}
+                  className="btn-danger" 
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  title="Clique para remover"
+                >
+                  Remover
+                </button>
+              ) : (
+                <button onClick={() => handleSaveMovie(movie)} className="btn-success" style={{ width: '100%' }}>
+                  Salvar Filme
+                </button>
+              )}
+            </div>
             </div>
           ))}
         </div>
@@ -285,6 +345,18 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
 
       {/* Modal Flutuante com os Detalhes do Filme */}
       <MovieDetailsModal movie={selectedMovieDetails} onClose={() => setSelectedMovieDetails(null)} />
+
+      {/* Modal Customizado de Confirmação de Remoção */}
+      <Modal isOpen={!!movieToRemove} onClose={() => setMovieToRemove(null)} maxWidth="400px">
+        <h3 style={{ marginTop: 0, color: 'var(--danger)', textAlign: 'center', fontSize: '1.5rem' }}>Confirmação</h3>
+        <p style={{ textAlign: 'center', marginBottom: '25px', fontSize: '1.1rem', color: '#ccc' }}>
+          Tem certeza que deseja remover <strong>{movieToRemove?.title}</strong> da sua lista?
+        </p>
+        <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+          <button onClick={() => setMovieToRemove(null)} className="btn-secondary" style={{ flex: 1, padding: '10px' }}>Cancelar</button>
+          <button onClick={confirmRemoveMovie} className="btn-danger" style={{ flex: 1, padding: '10px' }}>Remover</button>
+        </div>
+      </Modal>
 
       {/* Botão flutuante para voltar ao topo */}
       {showScrollTop && (
@@ -307,7 +379,7 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
           }}
           title="Voltar ao Topo"
         >
-          ⬆️
+          <ArrowUp size={24} />
         </button>
       )}
     </>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ArrowLeft, ArrowRight, ChevronDown } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import api from '../services/api';
 import Modal from './Modal';
@@ -208,11 +209,11 @@ export default function PublicList() {
           {view === 'CALENDAR' && (
             <div className="public-card" style={{ width: 'calc(100% - 40px)', maxWidth: '1400px', margin: '0 auto 20px auto', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                <button onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))} className="btn-secondary" style={{ width: 'auto', margin: 0, padding: '8px 15px' }}>⬅️ Anterior</button>
+                <button onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))} className="btn-secondary" style={{ width: 'auto', margin: 0, padding: '8px 15px' }}><span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><ArrowLeft size={16} /> Anterior</span></button>
                 <h2 style={{ textTransform: 'capitalize', margin: 0, color: 'var(--primary)', textAlign: 'center', flex: 1 }}>
                   {calendarMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
                 </h2>
-                <button onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))} className="btn-secondary" style={{ width: 'auto', margin: 0, padding: '8px 15px' }}>Próximo ➡️</button>
+                <button onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))} className="btn-secondary" style={{ width: 'auto', margin: 0, padding: '8px 15px' }}><span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>Próximo <ArrowRight size={16} /></span></button>
               </div>
               <div className="calendar-header">
                 <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
@@ -307,8 +308,8 @@ export default function PublicList() {
                             ({groupedWatchedMovies[monthKey].length} filme{groupedWatchedMovies[monthKey].length > 1 ? 's' : ''})
                           </span>
                         </h3>
-                        <span style={{ fontSize: '1.2rem', transition: 'transform 0.3s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', color: isExpanded ? 'var(--success)' : 'var(--primary)' }}>
-                          🔽
+                        <span style={{ transition: 'transform 0.3s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', color: isExpanded ? 'var(--success)' : 'var(--primary)', display: 'flex', alignItems: 'center' }}>
+                          <ChevronDown size={20} />
                         </span>
                       </div>
                       

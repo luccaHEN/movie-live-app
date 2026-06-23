@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
@@ -183,7 +184,7 @@ export default function RouletteModal({ isOpen, onClose, token, streamerMode, fe
         {!isSpinning && <button onClick={onClose} className="close-btn">&times;</button>}
         
         {!isSpinning && isDrawScreen && (
-          <button onClick={() => { setIsDrawScreen(false); setDrawnMovie(null); setCaseTrack([]); setCaseOffset(0); setFlippedCardIndex(null); }} style={{ position: 'absolute', top: '18px', left: '15px', background: 'transparent', border: 'none', color: '#aaa', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', padding: 0 }}>⬅️ Voltar</button>
+          <button onClick={() => { setIsDrawScreen(false); setDrawnMovie(null); setCaseTrack([]); setCaseOffset(0); setFlippedCardIndex(null); }} style={{ position: 'absolute', top: '18px', left: '15px', background: 'transparent', border: 'none', color: '#aaa', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', padding: 0 }}><ArrowLeft size={16} /> Voltar</button>
         )}
 
         <h2 style={{ marginBottom: '20px', color: 'var(--primary)' }}>🎲 Roleta de Filmes</h2>
@@ -236,7 +237,7 @@ export default function RouletteModal({ isOpen, onClose, token, streamerMode, fe
                 <button onClick={() => setDrawType('CARDS')} className={`btn-${drawType === 'CARDS' ? 'primary' : 'secondary'}`} style={{ flex: 1, padding: '8px' }}>🃏 Cartas</button>
               </div>
             </div>
-            <button onClick={() => { setIsDrawScreen(true); [tickSound, winSound, flipSound].forEach(a => { a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {}); }); }} className="btn-primary" disabled={rouletteCandidates.length === 0} style={{ marginTop: '10px', padding: '12px', fontSize: '1.1rem' }}>Ir para o Sorteio ➡️</button>
+            <button onClick={() => { setIsDrawScreen(true); [tickSound, winSound, flipSound].forEach(a => { a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {}); }); }} className="btn-primary" disabled={rouletteCandidates.length === 0} style={{ marginTop: '10px', padding: '12px', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>Ir para o Sorteio <ArrowRight size={18} /></button>
           </div>
         ) : (
           <>

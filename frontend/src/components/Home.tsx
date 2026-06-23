@@ -1,127 +1,52 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, ArrowRight, Star, Trophy } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import MovieDetailsModal from './MovieDetailsModal';
-import Modal from './Modal';
 
-const HomeMovieCardItem = React.memo(({ movie, onUpdate, onShowDetails, draggedMovieId, dragOverMovieId, setDraggedMovieId, setDragOverMovieId, onDrop, streamerMode, viewMode }: any) => {
-  const [streamerRating, setStreamerRating] = useState(movie.streamerRating ?? '');
-  const [chatRating, setChatRating] = useState(movie.chatRating ?? '');
-  const [isEditing, setIsEditing] = useState(false);
-  const [requestedBy, setRequestedBy] = useState(movie.requestedBy || '');
-  const [watchDate, setWatchDate] = useState(movie.watchDate ? new Date(movie.watchDate).toISOString().split('T')[0] : '');
-
-  useEffect(() => setStreamerRating(movie.streamerRating ?? ''), [movie.streamerRating]);
-  useEffect(() => setChatRating(movie.chatRating ?? ''), [movie.chatRating]);
-  useEffect(() => setRequestedBy(movie.requestedBy || ''), [movie.requestedBy]);
-  useEffect(() => setWatchDate(movie.watchDate ? new Date(movie.watchDate).toISOString().split('T')[0] : ''), [movie.watchDate]);
-
-  const handleSaveEdit = () => {
-    const updates: any = {};
-    if (requestedBy !== (movie.requestedBy || '')) {
-      updates.requestedBy = requestedBy.trim() || null;
-    }
-    const currentWatchDateStr = movie.watchDate ? new Date(movie.watchDate).toISOString().split('T')[0] : '';
-    if (watchDate !== currentWatchDateStr) {
-      updates.watchDate = watchDate ? new Date(watchDate).toISOString() : null;
-    }
-    if (Object.keys(updates).length > 0) {
-      onUpdate(movie.id, updates);
-    }
-    setIsEditing(false);
-  };
-
-  const handleCancelEdit = () => {
-    setRequestedBy(movie.requestedBy || '');
-    setWatchDate(movie.watchDate ? new Date(movie.watchDate).toISOString().split('T')[0] : '');
-    setIsEditing(false);
-  };
+const HomeMovieCardItem = React.memo(({ movie, onShowDetails, streamerMode }: any) => {
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
     <>
       <div 
-        className={`movie-card draggable-card ${draggedMovieId === movie.id ? 'dragging' : ''} ${dragOverMovieId === movie.id ? 'drag-over' : ''}`}
-        style={{ display: 'flex', flexDirection: 'row', gap: '15px', padding: '15px', width: '100%', minWidth: 0, boxSizing: 'border-box', border: movie.watched ? '1px solid #10b981' : '1px solid var(--input-border)', boxShadow: '0 4px 10px rgba(0,0,0,0.05)', borderRadius: '12px', backgroundColor: 'var(--bg-color)', transition: 'transform 0.2s, box-shadow 0.2s', alignItems: 'flex-start' }}
-        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 15px rgba(0,0,0,0.1)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 10px rgba(0,0,0,0.05)'; }}
-        draggable
-        onDragStart={(e) => {
-          e.dataTransfer.effectAllowed = 'move';
-          e.dataTransfer.setData('text/plain', movie.id.toString());
-          setDraggedMovieId(movie.id);
-        }}
-        onDragOver={(e) => { e.preventDefault(); if (dragOverMovieId !== movie.id) setDragOverMovieId(movie.id); }}
-        onDrop={(e) => onDrop(e, movie.id)}
-        onDragEnd={() => { setDraggedMovieId(null); setDragOverMovieId(null); }}
+        style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px', boxSizing: 'border-box' }}
       >
-      {/* Capa Lateral */}
-      <div style={{ flexShrink: 0, cursor: 'pointer', marginTop: '2px' }} onClick={() => onShowDetails(movie.tmdbId)} title="Ver Detalhes">
-        {movie.poster ? (
-          <img src={`https://image.tmdb.org/t/p/w154${movie.poster}`} alt={movie.title} style={{ width: '90px', height: '135px', objectFit: 'cover', opacity: movie.watched ? 0.6 : 1, borderRadius: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }} />
-        ) : (
-          <div style={{ width: '90px', height: '135px', borderRadius: '6px', backgroundColor: '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '0.7rem' }}>Sem capa</div>
-        )}
-      </div>
+        {/* Pôster com Overlay Glassmorphism */}
+        <div 
+          style={{ position: 'relative', width: '100%', aspectRatio: '2/3', borderRadius: '16px', overflow: 'hidden', boxShadow: movie.watched ? '0 0 0 3px #10b981, 0 8px 20px rgba(0,0,0,0.4)' : '0 8px 20px rgba(0,0,0,0.4)', transition: 'transform 0.3s ease-out', transform: isHovered ? 'scale(1.03)' : 'scale(1)', cursor: 'pointer' }}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          onClick={() => onShowDetails(movie.tmdbId)}
+        >
+          {movie.poster ? (
+             <img src={`https://image.tmdb.org/t/p/w342${movie.poster}`} alt={movie.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+             <div style={{ width: '100%', height: '100%', backgroundColor: '#222', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888' }}>Sem capa</div>
+          )}
+          
+          {movie.watched && (
+            <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(16, 185, 129, 0.9)', color: '#fff', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold', zIndex: 2, backdropFilter: 'blur(4px)', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
+              ✓ Assistido
+            </div>
+          )}
 
-      {/* Informações e Controles */}
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, justifyContent: 'flex-start', height: '100%' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', marginBottom: '6px' }}>
-          <div>
-            {viewMode === 'SEMANA' && <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>{new Date(movie.watchDate).toLocaleDateString('pt-BR', { timeZone: 'UTC', weekday: 'short', day: '2-digit', month: '2-digit' }).toUpperCase()}</span>}
-            <strong style={{ fontSize: '1.1rem', color: 'var(--text-color)', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', cursor: 'pointer', lineHeight: '1.2' }} onClick={() => onShowDetails(movie.tmdbId)} title={movie.title}>{movie.title}</strong>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span style={{ color: isEditing ? 'var(--primary)' : '#666', cursor: 'pointer', fontSize: '1.1rem', lineHeight: '1' }} onClick={() => isEditing ? handleCancelEdit() : setIsEditing(true)} title="Editar informações">✏️</span>
-            <span style={{ color: '#666', cursor: 'grab', fontSize: '1.2rem', lineHeight: '1' }} title="Arraste para trocar com outro filme">⣿</span>
+          {/* Badge de Data sempre visível na Agenda */}
+          <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.8)', color: 'var(--primary)', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold', zIndex: 2, backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            {new Date(movie.watchDate).toLocaleDateString('pt-BR', { timeZone: 'UTC', weekday: 'short', day: '2-digit', month: '2-digit' }).toUpperCase()}
           </div>
         </div>
 
-        {streamerMode && movie.requestedBy && (
-          <div style={{ fontSize: '0.85rem', color: '#aaa', marginBottom: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            Resgate: <strong style={{ color: 'var(--primary)' }}>{movie.requestedBy}</strong>
-          </div>
-        )}
-
-        <label className="checkbox-label" style={{ margin: '0 0 10px 0', fontSize: '0.9rem' }}>
-          <input type="checkbox" checked={movie.watched} onChange={(e) => onUpdate(movie.id, { watched: e.target.checked })} />
-          <span className="toggle-switch" style={{ transform: 'scale(0.8)', margin: '0 8px 0 0' }}></span>
-          Já assisti
-        </label>
-
-        <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
-          <label className="input-label" style={{ flex: 1, margin: 0, fontSize: '0.8rem', color: '#ccc' }}>
-            Sua Nota:
-            <input type="number" min="0" max="10" step="0.01" value={streamerRating} onChange={(e) => setStreamerRating(e.target.value.replace(',', '.'))} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={() => { if (streamerRating !== (movie.streamerRating ?? '')) { let val = streamerRating ? parseFloat(String(streamerRating).replace(',', '.')) : null; if (val !== null) { val = Math.max(0, Math.min(10, parseFloat(val.toFixed(2)))); } onUpdate(movie.id, { streamerRating: val }); } }} style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid var(--input-border)', backgroundColor: 'var(--card-bg)', color: 'var(--text-color)', marginTop: '4px', outline: 'none', fontSize: '0.9rem' }} />
-          </label>
-          {streamerMode && (
-            <label className="input-label" style={{ flex: 1, margin: 0, fontSize: '0.8rem', color: '#ccc' }}>
-              Nota Chat:
-              <input type="number" min="0" max="10" step="0.01" value={chatRating} onChange={(e) => setChatRating(e.target.value.replace(',', '.'))} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={() => { if (chatRating !== (movie.chatRating ?? '')) { let val = chatRating ? parseFloat(String(chatRating).replace(',', '.')) : null; if (val !== null) { val = Math.max(0, Math.min(10, parseFloat(val.toFixed(2)))); } onUpdate(movie.id, { chatRating: val }); } }} style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid var(--input-border)', backgroundColor: 'var(--card-bg)', color: 'var(--text-color)', marginTop: '4px', outline: 'none', fontSize: '0.9rem' }} />
-            </label>
+        {/* Título e Info Inferior */}
+        <div style={{ textAlign: 'center', padding: '0 5px' }}>
+          <strong style={{ fontSize: '1.2rem', color: 'var(--text-color)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: '1.3' }} title={movie.title}>{movie.title}</strong>
+          {streamerMode && movie.requestedBy && (
+            <div style={{ fontSize: '0.9rem', color: '#888', marginTop: '5px' }}>
+              Por: <strong style={{ color: 'var(--primary)' }}>{movie.requestedBy}</strong>
+            </div>
           )}
         </div>
       </div>
-      </div>
-
-      <Modal isOpen={isEditing} onClose={handleCancelEdit} maxWidth="400px">
-        <h2 style={{ marginTop: 0, color: 'var(--primary)', marginBottom: '20px', textAlign: 'center' }}>✏️ Editar Filme</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', textAlign: 'left' }}>
-          {streamerMode && (
-            <label className="input-label" style={{ margin: 0, fontSize: '0.9rem' }}>
-              Resgatado por:
-              <input type="text" placeholder="Ninguém" value={requestedBy} onChange={(e) => setRequestedBy(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveEdit(); } }} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-color)', color: 'var(--text-color)', marginTop: '5px', outline: 'none' }} />
-            </label>
-          )}
-          <label className="input-label" style={{ margin: 0, fontSize: '0.9rem' }}>
-            {streamerMode ? 'Agendado para:' : 'Data que assistiu:'}
-            <input type="date" value={watchDate} onChange={(e) => setWatchDate(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-color)', color: 'var(--text-color)', marginTop: '5px', outline: 'none' }} />
-          </label>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-            <button onClick={handleSaveEdit} className="btn-primary" style={{ flex: 1, margin: 0 }}>Salvar</button>
-            <button onClick={handleCancelEdit} className="btn-secondary" style={{ flex: 1, margin: 0 }}>Cancelar</button>
-          </div>
-        </div>
-      </Modal>
     </>
   );
 });
@@ -129,17 +54,17 @@ const HomeMovieCardItem = React.memo(({ movie, onUpdate, onShowDetails, draggedM
 interface HomeProps {
   token: string;
   streamerMode: boolean;
-  user?: any;
+
+  stats?: any;
+  setShowBestMoviesModal?: (val: boolean) => void;
+  setShowTopRescuersModal?: (val: boolean) => void;
 }
 
-export default function Home({ token, streamerMode, user }: HomeProps) {
+export default function Home({ token, streamerMode, stats, setShowBestMoviesModal, setShowTopRescuersModal }: HomeProps) {
   const [movies, setMovies] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMovieDetails, setSelectedMovieDetails] = useState<any | null>(null);
-  const [draggedMovieId, setDraggedMovieId] = useState<number | null>(null);
-  const [dragOverMovieId, setDragOverMovieId] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<'HOJE' | 'SEMANA'>('HOJE');
-  const [carouselIndex, setCarouselIndex] = useState(0);
+  const [highlightIndex, setHighlightIndex] = useState(0);
 
   const fetchMovies = useCallback(async () => {
     try {
@@ -170,118 +95,54 @@ export default function Home({ token, streamerMode, user }: HomeProps) {
     }
   };
 
-  // Pega a data de hoje local da máquina do usuário no formato YYYY-MM-DD
   const now = new Date();
   const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
   const today = localDate.toISOString().split('T')[0];
 
-  const nextWeekDate = new Date(localDate);
-  nextWeekDate.setDate(localDate.getDate() + 6);
-  const nextWeek = nextWeekDate.toISOString().split('T')[0];
-
-  // Filtra os filmes do dia ou da semana
   const displayedMovies = movies
     .filter(m => {
       if (!m.watchDate) return false;
       const mDate = String(m.watchDate).split('T')[0];
-      return viewMode === 'HOJE' ? mDate === today : (mDate >= today && mDate <= nextWeek);
+      return mDate >= today;
     })
     .sort((a, b) => new Date(a.watchDate).getTime() - new Date(b.watchDate).getTime());
 
-  // Reseta o carrossel ao trocar a aba "Hoje / Semana"
-  useEffect(() => {
-    setCarouselIndex(0);
-  }, [viewMode]);
+  const highlightMovies = movies
+    .filter(m => m.watchDate && String(m.watchDate).split('T')[0] >= today && !m.watched && m.poster)
+    .sort((a, b) => new Date(a.watchDate).getTime() - new Date(b.watchDate).getTime())
+    .slice(0, 5);
 
-  // Garante que o índice não fique fora dos limites caso a lista diminua (ex: filme deletado/movido)
-  const currentCarouselIndex = Math.min(carouselIndex, Math.max(0, Math.ceil(displayedMovies.length / 3) - 1) * 3);
-
-  // Destaque: Próximo filme de terror não assistido
   const terrorDaSemana = movies
-    .filter(m => m.watchDate && String(m.watchDate).split('T')[0] >= today && !m.watched && m.genre?.toLowerCase().includes('terror') && new Date(m.watchDate).getUTCDay() === 5)
+    .filter(m => m.watchDate && String(m.watchDate).split('T')[0] >= today && !m.watched && m.genre?.toLowerCase().includes('terror'))
     .sort((a, b) => new Date(a.watchDate).getTime() - new Date(b.watchDate).getTime())[0];
 
-  const greeting = user?.name ? `Olá, ${user.name}!` : 'Olá!';
+  const bannerSlides: any[] = [...highlightMovies.map(m => ({ type: 'movie', data: m }))];
+  if (terrorDaSemana) {
+    bannerSlides.unshift({ type: 'terror', data: terrorDaSemana });
+  }
+  if (streamerMode && stats?.topRescuer && stats.topRescuer !== 'N/A') {
+    bannerSlides.unshift({ type: 'rescuer', data: { name: stats.topRescuer, count: stats.monthRanking?.[0]?.count } });
+  }
+  if (streamerMode && stats?.bestMovies?.length > 0) {
+    bannerSlides.unshift({ type: 'best_movie', data: stats.bestMovies });
+  }
 
-  // Função de atualização em tempo real do Card Interativo
-  const handleUpdateMovie = async (id: number, updates: any) => {
-    setMovies(prevMovies => prevMovies.map(m => m.id === id ? { ...m, ...updates } : m));
-    try {
-      await api.put(`/movies/${id}`, updates, { headers: { Authorization: `Bearer ${token}` } });
-    } catch (error) {
-      toast.error('Erro ao atualizar o filme.');
-      fetchMovies();
-    }
-  };
+  useEffect(() => {
+    if (bannerSlides.length <= 1) return;
+    const timer = setInterval(() => {
+      setHighlightIndex(prev => (prev + 1) % bannerSlides.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [bannerSlides.length]);
 
-  // Função de Drag & Drop (Reordena os filmes)
-  const handleDrop = async (e: React.DragEvent, targetId: number) => {
-    e.preventDefault();
-    const draggedId = parseInt(e.dataTransfer.getData('text/plain'), 10);
-    
-    if (!draggedId || draggedId === targetId) {
-      setDraggedMovieId(null);
-      setDragOverMovieId(null);
-      return;
-    }
 
-    const draggedMovie = movies.find(m => m.id === draggedId);
-    const targetMovie = movies.find(m => m.id === targetId);
-    if (!draggedMovie || !targetMovie) return;
 
-    const baseDateString = targetMovie.watchDate
-      ? String(targetMovie.watchDate).split('T')[0]
-      : today;
+  // Drag and drop temporariamente removido
 
-    const moviesOnSameDay = movies
-      .filter(m => m.watchDate && String(m.watchDate).split('T')[0] === baseDateString)
-      .sort((a, b) => new Date(a.watchDate).getTime() - new Date(b.watchDate).getTime());
-
-    const otherMovies = moviesOnSameDay.filter(m => m.id !== draggedId);
-    const targetIndex = otherMovies.findIndex(m => m.id === targetId);
-    const originalDraggedIndex = moviesOnSameDay.findIndex(m => m.id === draggedId);
-    const originalTargetIndex = moviesOnSameDay.findIndex(m => m.id === targetId);
-
-    let insertIndex = targetIndex;
-    if (targetIndex !== -1) {
-      insertIndex = originalDraggedIndex > originalTargetIndex ? targetIndex : targetIndex + 1;
-    } else {
-      insertIndex = otherMovies.length;
-    }
-
-    otherMovies.splice(insertIndex, 0, draggedMovie);
-
-    const changedMovies: any[] = [];
-    const newMovies = movies.map(m => {
-      const dayIndex = otherMovies.findIndex(dayMovie => dayMovie.id === m.id);
-      if (dayIndex !== -1) {
-        const newDateObj = new Date(`${baseDateString}T00:00:00.000Z`);
-        newDateObj.setSeconds(dayIndex);
-        const newDateStr = newDateObj.toISOString();
-        if (m.watchDate !== newDateStr) {
-          changedMovies.push({ id: m.id, watchDate: newDateStr });
-          return { ...m, watchDate: newDateStr };
-        }
-      }
-      return m;
-    });
-
-    setMovies(newMovies);
-
-    setDraggedMovieId(null);
-    setDragOverMovieId(null);
-
-    for (const update of changedMovies) {
-      try {
-        await api.put(`/movies/${update.id}`, { watchDate: update.watchDate }, { headers: { Authorization: `Bearer ${token}` } });
-      } catch (error) {
-        console.error('Erro ao reordenar filme', error);
-      }
-    }
-  };
+  const currentHighlight = bannerSlides[highlightIndex] || null;
 
   return (
-    <div style={{ maxWidth: '1150px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px', paddingBottom: '40px' }}>
+    <div style={{ maxWidth: '1150px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '15px', paddingBottom: '20px' }}>
       <style>
         {`
           .drag-over {
@@ -292,105 +153,401 @@ export default function Home({ token, streamerMode, user }: HomeProps) {
           .dragging { opacity: 0.5; }
           .draggable-card { cursor: grab; }
           .draggable-card:active { cursor: grabbing; }
+          
+          @keyframes pulse-glow {
+            0% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 0.5; }
+          }
+          
+          .highlight-banner {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+          }
+          .highlight-banner .bg-img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: brightness(0.4) blur(20px);
+            transform: scale(1.15);
+          }
+          .highlight-banner .gradient-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to right, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.3) 100%);
+          }
+          .highlight-banner .content {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            padding: 30px 50px;
+            gap: 40px;
+            z-index: 2;
+          }
+          .highlight-banner .poster-img {
+            width: 160px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            transition: transform 0.4s;
+            flex-shrink: 0;
+          }
+          .highlight-banner .poster-img:hover {
+            transform: scale(1.05);
+          }
+          .highlight-banner .info {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 15px;
+            flex: 1;
+            min-width: 0;
+          }
+          .highlight-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+          }
+          .highlight-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.25);
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            padding: 0;
+          }
+          .highlight-dot.active {
+            background: var(--primary);
+            width: 28px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px var(--primary);
+          }
+          .empty-state-cinema {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            text-align: center;
+            background: rgba(255,255,255,0.03);
+            border: 1px dashed rgba(255,255,255,0.1);
+            border-radius: 20px;
+          }
+          .cinema-seat-svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            opacity: 0.6;
+          }
+          .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+          }
         `}
       </style>
 
-      {/* CABEÇALHO DO PAINEL */}
-      <div style={{ textAlign: 'center', padding: '10px 0 20px 0' }}>
-        <h1 style={{ color: 'var(--primary)', margin: '0 0 10px 0', fontSize: '2.2rem' }}>{greeting} 🍿</h1>
-        <p style={{ color: '#aaa', fontSize: '1.1rem', margin: 0 }}>O que vamos assistir?</p>
-      </div>
-
-      {isLoading ? (
-        <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '1.2rem' }}>Carregando sua agenda... 📅</p>
-      ) : (
-        <>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
-            <section style={{ width: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #10b981', paddingBottom: '10px', marginBottom: '20px' }}>
-                <h2 style={{ margin: 0, color: '#10b981', fontSize: '1.4rem' }}>
-                  {viewMode === 'HOJE' ? '📅 Filmes de Hoje' : '📆 Filmes da Semana'}
-                </h2>
-                <div style={{ display: 'flex', gap: '5px', backgroundColor: 'var(--card-bg)', padding: '4px', borderRadius: '8px', border: '1px solid var(--input-border)' }}>
-                  <button onClick={() => setViewMode('HOJE')} className={viewMode === 'HOJE' ? 'btn-primary' : 'btn-secondary'} style={{ padding: '6px 16px', fontSize: '0.85rem', width: 'auto', margin: 0, borderRadius: '6px' }}>
-                    Hoje
-                  </button>
-                  <button onClick={() => setViewMode('SEMANA')} className={viewMode === 'SEMANA' ? 'btn-primary' : 'btn-secondary'} style={{ padding: '6px 16px', fontSize: '0.85rem', width: 'auto', margin: 0, borderRadius: '6px' }}>
-                    Semana
-                  </button>
-                </div>
-              </div>
-              {displayedMovies.length === 0 ? (
-                <p style={{ color: '#888', fontStyle: 'italic', margin: 0 }}>Nenhum filme agendado para {viewMode === 'HOJE' ? 'hoje' : 'esta semana'}.</p>
-              ) : (
-                <>
-                  <div className="movies-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-                    {displayedMovies.slice(currentCarouselIndex, currentCarouselIndex + 3).map(movie => (
-                      <HomeMovieCardItem 
-                        key={movie.id} 
-                        movie={movie}
-                        onUpdate={handleUpdateMovie}
-                        onShowDetails={handleShowDetails}
-                        draggedMovieId={draggedMovieId}
-                        dragOverMovieId={dragOverMovieId}
-                        setDraggedMovieId={setDraggedMovieId}
-                        setDragOverMovieId={setDragOverMovieId}
-                        onDrop={handleDrop}
-                        streamerMode={streamerMode}
-                        viewMode={viewMode}
-                      />
-                    ))}
-                  </div>
-
-                  {displayedMovies.length > 3 && (
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '20px' }}>
+      {/* ===== BANNER DESTAQUE ===== */}
+      {bannerSlides.length > 0 && currentHighlight ? (
+        <section>
+          <h2 style={{ margin: '0 0 15px 0', color: '#fff', fontSize: '1.4rem', fontWeight: 'bold' }}>⭐ Destaques</h2>
+          <div style={{ position: 'relative' }}>
+            <div className="highlight-banner">
+            
+            {currentHighlight.type === 'movie' && (
+              <>
+                {/* Background borrado */}
+                <img className="bg-img" src={`https://image.tmdb.org/t/p/w780${currentHighlight.data.poster}`} alt="bg" />
+                <div className="gradient-overlay"></div>
+                
+                {/* Conteúdo */}
+                <div className="content">
+                  <img 
+                    className="poster-img" 
+                    src={`https://image.tmdb.org/t/p/w342${currentHighlight.data.poster}`} 
+                    alt={currentHighlight.data.title}
+                    onClick={() => handleShowDetails(currentHighlight.data.tmdbId)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <div className="info">
+                    <h2 style={{ 
+                      fontSize: '2.8rem', 
+                      color: '#fff', 
+                      margin: 0, 
+                      fontWeight: 'bold', 
+                      lineHeight: '1.1',
+                      textShadow: '0 4px 20px rgba(0,0,0,0.8)',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden'
+                    }}>
+                      {currentHighlight.data.title}
+                    </h2>
+                    {currentHighlight.data.voteAverage && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Star size={20} fill="#fbbf24" color="#fbbf24" />
+                        <span style={{ color: '#fbbf24', fontSize: '1.2rem', fontWeight: 'bold' }}>
+                          {(currentHighlight.data.voteAverage / 2).toFixed(1)}/5
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '5px' }}>
                       <button 
-                        className="btn-secondary" 
-                        onClick={() => setCarouselIndex(prev => Math.max(0, prev - 3))} 
-                        disabled={currentCarouselIndex === 0}
-                        style={{ padding: '8px 16px', opacity: currentCarouselIndex === 0 ? 0.5 : 1, width: 'auto', margin: 0 }}
+                        onClick={() => handleShowDetails(currentHighlight.data.tmdbId)}
+                        style={{ 
+                          background: 'var(--primary)', 
+                          color: '#fff', 
+                          border: 'none', 
+                          padding: '12px 30px', 
+                          borderRadius: '12px', 
+                          fontWeight: 'bold', 
+                          fontSize: '1rem', 
+                          cursor: 'pointer',
+                          transition: 'all 0.3s',
+                          boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '1px'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.6)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(59, 130, 246, 0.4)'; }}
                       >
-                        ⬅️ Anterior
-                      </button>
-                      <span style={{ color: '#aaa', fontSize: '0.9rem', fontWeight: 'bold' }}>Página {Math.floor(currentCarouselIndex / 3) + 1} de {Math.ceil(displayedMovies.length / 3)}</span>
-                      <button 
-                        className="btn-secondary" 
-                        onClick={() => setCarouselIndex(prev => prev + 3)} 
-                        disabled={currentCarouselIndex + 3 >= displayedMovies.length}
-                        style={{ padding: '8px 16px', opacity: currentCarouselIndex + 3 >= displayedMovies.length ? 0.5 : 1, width: 'auto', margin: 0 }}
-                      >
-                        Próxima ➡️
+                        Assistir Agora
                       </button>
                     </div>
-                  )}
-                </>
-              )}
-            </section>
-
-            {terrorDaSemana && (
-              <section style={{ width: '100%' }}>
-                <h2 style={{ borderBottom: '2px solid #ef4444', paddingBottom: '10px', margin: '0 0 20px 0', color: '#ef4444', fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '10px' }}>🔪 Sexta do Terror</h2>
-                <div 
-                  onClick={() => handleShowDetails(terrorDaSemana.tmdbId)}
-                  style={{ cursor: 'pointer', background: 'linear-gradient(145deg, #3a0a0a, #111)', padding: '20px', borderRadius: '12px', display: 'flex', flexDirection: 'row', gap: '20px', alignItems: 'center', transition: 'transform 0.2s, box-shadow 0.2s', boxSizing: 'border-box', border: '1px solid rgba(239, 68, 68, 0.3)' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 15px rgba(239, 68, 68, 0.2)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
-                >
-                  {terrorDaSemana.poster ? (
-                    <img src={`https://image.tmdb.org/t/p/w154${terrorDaSemana.poster}`} alt={terrorDaSemana.title} style={{ width: '100px', height: '150px', borderRadius: '8px', objectFit: 'cover', boxShadow: '0 4px 12px rgba(0,0,0,0.6)', flexShrink: 0 }} />
-                  ) : (
-                    <div style={{ width: '100px', height: '150px', backgroundColor: '#333', borderRadius: '8px', flexShrink: 0 }}></div>
-                  )}
-                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'left', flex: 1, minWidth: 0 }}>
-                    <strong style={{ fontSize: '1.3rem', color: '#fff', textShadow: '1px 1px 3px rgba(0,0,0,0.8)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} title={terrorDaSemana.title}>{terrorDaSemana.title}</strong>
-                    <div style={{ color: '#ef4444', fontWeight: 'bold', marginTop: '12px', fontSize: '1rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '4px 10px', borderRadius: '6px', alignSelf: 'flex-start' }}>📅 {new Date(terrorDaSemana.watchDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</div>
+                    {streamerMode && currentHighlight.data.requestedBy && (
+                      <p style={{ margin: 0, color: '#888', fontSize: '0.95rem' }}>Resgatado por: <strong style={{ color: 'var(--primary)' }}>{currentHighlight.data.requestedBy}</strong></p>
+                    )}
                   </div>
                 </div>
-              </section>
+              </>
+            )}
+
+            {currentHighlight.type === 'rescuer' && (
+              <div style={{ position: 'absolute', inset: 0, backgroundColor: '#0f172a', overflow: 'hidden' }}>
+                 <div style={{ position: 'absolute', top: '-50%', left: '-20%', width: '100%', height: '200%', background: 'radial-gradient(circle, rgba(59,130,246,0.3) 0%, transparent 60%)', animation: 'pulse-glow 8s infinite' }} />
+                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(15,23,42,1) 10%, rgba(15,23,42,0.4) 100%)' }} />
+                 
+                 <div className="content" style={{ display: 'flex', alignItems: 'center', padding: '0 50px', gap: '40px', height: '100%', position: 'relative', zIndex: 2 }}>
+                    <div style={{ flexShrink: 0, background: 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(30,58,138,0.5))', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '30px', padding: '25px', boxShadow: '0 20px 50px rgba(0,0,0,0.5), inset 0 0 30px rgba(59,130,246,0.2)' }}>
+                      <Trophy size={80} color="#fbbf24" style={{ filter: 'drop-shadow(0 0 30px rgba(251,191,36,0.6))' }} />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <span style={{ backgroundColor: 'rgba(251,191,36,0.15)', border: '1px solid #fbbf24', color: '#fbbf24', padding: '6px 18px', borderRadius: '30px', fontWeight: 'bold', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '2px', alignSelf: 'flex-start' }}>👑 Hall da Fama</span>
+                      <h2 style={{ fontSize: '1.4rem', color: '#93c5fd', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Maior Resgatador do Mês</h2>
+                      <h1 style={{ fontSize: '2.8rem', color: '#fff', margin: 0, fontWeight: 'bold', textShadow: '0 5px 20px rgba(0,0,0,0.5)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{currentHighlight.data.name}</h1>
+                      <p style={{ fontSize: '1.1rem', color: '#bfdbfe', margin: '0 0 10px 0' }}>Dominando a agenda com <strong style={{ color: '#fff' }}>{currentHighlight.data.count} resgates</strong> no ranking geral!</p>
+                      
+                      <button onClick={() => setShowTopRescuersModal && setShowTopRescuersModal(true)} style={{ alignSelf: 'flex-start', background: 'rgba(59,130,246,0.2)', border: '1px solid #3b82f6', color: '#fff', padding: '10px 25px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.9rem' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#3b82f6'; e.currentTarget.style.boxShadow = '0 0 20px rgba(59,130,246,0.5)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(59,130,246,0.2)'; e.currentTarget.style.boxShadow = 'none'; }}>
+                        Ver Ranking Completo
+                      </button>
+                    </div>
+                 </div>
+              </div>
+            )}
+
+            {currentHighlight.type === 'best_movie' && (
+              <div style={{ position: 'absolute', inset: 0, backgroundColor: '#451a03', overflow: 'hidden' }}>
+                 {currentHighlight.data.length === 1 && currentHighlight.data[0].poster && (
+                   <img src={`https://image.tmdb.org/t/p/w780${currentHighlight.data[0].poster}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.3) blur(15px)', transform: 'scale(1.1)' }} alt="bg" />
+                 )}
+                 <div style={{ position: 'absolute', top: '-50%', right: '-20%', width: '100%', height: '200%', background: 'radial-gradient(circle, rgba(245,158,11,0.2) 0%, transparent 60%)', animation: 'pulse-glow 8s infinite reverse' }} />
+                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(69,26,3,1) 10%, rgba(69,26,3,0.5) 100%)' }} />
+                 
+                 <div className="content" style={{ display: 'flex', alignItems: 'center', padding: '0 50px', gap: '40px', height: '100%', position: 'relative', zIndex: 2 }}>
+                    <div style={{ flexShrink: 0, position: 'relative' }}>
+                      {currentHighlight.data.length === 1 && currentHighlight.data[0].poster ? (
+                        <>
+                          <img src={`https://image.tmdb.org/t/p/w342${currentHighlight.data[0].poster}`} style={{ width: '160px', borderRadius: '16px', boxShadow: '0 10px 40px rgba(245,158,11,0.4)', border: '2px solid rgba(245,158,11,0.5)' }} alt="Poster" />
+                          <div style={{ position: 'absolute', top: '-15px', right: '-15px', background: '#fbbf24', borderRadius: '50%', padding: '10px', boxShadow: '0 5px 15px rgba(0,0,0,0.5)' }}>
+                            <Star size={30} fill="#78350f" color="#78350f" />
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(120,53,15,0.5))', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '30px', padding: '25px', boxShadow: '0 20px 50px rgba(0,0,0,0.5), inset 0 0 30px rgba(245,158,11,0.2)' }}>
+                          <Star size={80} fill="#fbbf24" color="#fbbf24" style={{ filter: 'drop-shadow(0 0 30px rgba(251,191,36,0.6))' }} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <span style={{ backgroundColor: 'rgba(251,191,36,0.15)', border: '1px solid #fbbf24', color: '#fbbf24', padding: '6px 18px', borderRadius: '30px', fontWeight: 'bold', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '2px', alignSelf: 'flex-start' }}>⭐ O Queridinho da Galera</span>
+                      <h2 style={{ fontSize: '1.4rem', color: '#fcd34d', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Melhor Avaliado do Mês</h2>
+                      <h1 style={{ fontSize: '2.8rem', color: '#fff', margin: 0, fontWeight: 'bold', textShadow: '0 5px 20px rgba(0,0,0,0.5)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {currentHighlight.data.length === 1 ? currentHighlight.data[0].title : `${currentHighlight.data.length} Filmes Empatados!`}
+                      </h1>
+                      <p style={{ fontSize: '1.1rem', color: '#fde68a', margin: '0 0 10px 0' }}>{currentHighlight.data.length === 1 ? 'A pontuação máxima do chat e do streamer!' : 'A disputa foi acirrada e não tivemos um único vencedor.'}</p>
+                      
+                      <button onClick={() => setShowBestMoviesModal && setShowBestMoviesModal(true)} style={{ alignSelf: 'flex-start', background: 'rgba(245,158,11,0.2)', border: '1px solid #fbbf24', color: '#fff', padding: '10px 25px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.9rem' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#f59e0b'; e.currentTarget.style.boxShadow = '0 0 20px rgba(245,158,11,0.5)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(245,158,11,0.2)'; e.currentTarget.style.boxShadow = 'none'; }}>
+                        {currentHighlight.data.length === 1 ? 'Ver Vencedor' : 'Ir para o Desempate'}
+                      </button>
+                    </div>
+                 </div>
+              </div>
+            )}
+
+            {currentHighlight.type === 'terror' && (
+              <div style={{ position: 'absolute', inset: 0, backgroundColor: '#450a0a', overflow: 'hidden' }}>
+                 {currentHighlight.data.poster && (
+                   <img src={`https://image.tmdb.org/t/p/w780${currentHighlight.data.poster}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.3) blur(15px) grayscale(50%)', transform: 'scale(1.1)' }} alt="bg" />
+                 )}
+                 <div style={{ position: 'absolute', top: '-50%', right: '-20%', width: '100%', height: '200%', background: 'radial-gradient(circle, rgba(220,38,38,0.2) 0%, transparent 60%)', animation: 'pulse-glow 8s infinite reverse' }} />
+                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(69,10,10,1) 10%, rgba(69,10,10,0.5) 100%)' }} />
+                 
+                 <div className="content" style={{ display: 'flex', alignItems: 'center', padding: '0 50px', gap: '40px', height: '100%', position: 'relative', zIndex: 2 }}>
+                    <div style={{ flexShrink: 0, position: 'relative' }}>
+                      <img src={`https://image.tmdb.org/t/p/w342${currentHighlight.data.poster}`} style={{ width: '160px', borderRadius: '16px', boxShadow: '0 10px 40px rgba(220,38,38,0.4)', border: '2px solid rgba(220,38,38,0.5)' }} alt="Poster" />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <span style={{ backgroundColor: 'rgba(220,38,38,0.15)', border: '1px solid #dc2626', color: '#f87171', padding: '6px 18px', borderRadius: '30px', fontWeight: 'bold', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '2px', alignSelf: 'flex-start' }}>🩸 Sexta do Terror</span>
+                      <h2 style={{ fontSize: '1.4rem', color: '#fca5a5', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Prepare os Nervos</h2>
+                      <h1 style={{ fontSize: '2.8rem', color: '#fff', margin: 0, fontWeight: 'bold', textShadow: '0 5px 20px rgba(0,0,0,0.5)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {currentHighlight.data.title}
+                      </h1>
+                      <p style={{ fontSize: '1.1rem', color: '#fecaca', margin: '0 0 10px 0' }}>O grande escolhido para assombrar a nossa noite!</p>
+                      
+                      <button onClick={() => handleShowDetails(currentHighlight.data.tmdbId)} style={{ alignSelf: 'flex-start', background: 'rgba(220,38,38,0.2)', border: '1px solid #dc2626', color: '#fff', padding: '10px 25px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.9rem' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.boxShadow = '0 0 20px rgba(220,38,38,0.5)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(220,38,38,0.2)'; e.currentTarget.style.boxShadow = 'none'; }}>
+                        Ver Detalhes
+                      </button>
+                    </div>
+                 </div>
+              </div>
             )}
           </div>
-        </>
+
+          {bannerSlides.length > 1 && (
+            <>
+              <button 
+                className="btn-secondary"
+                onClick={(e) => { e.stopPropagation(); setHighlightIndex(prev => (prev - 1 + bannerSlides.length) % bannerSlides.length); }}
+                style={{ position: 'absolute', left: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 10, margin: 0, padding: '12px', borderRadius: '50%', boxShadow: '0 4px 15px rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <ArrowLeft size={20} />
+              </button>
+              <button 
+                className="btn-secondary"
+                onClick={(e) => { e.stopPropagation(); setHighlightIndex(prev => (prev + 1) % bannerSlides.length); }}
+                style={{ position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 10, margin: 0, padding: '12px', borderRadius: '50%', boxShadow: '0 4px 15px rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <ArrowRight size={20} />
+              </button>
+            </>
+          )}
+        </div>
+
+          {/* Dots de navegação */}
+          {bannerSlides.length > 1 && (
+            <div className="highlight-dots">
+              {bannerSlides.map((_, i) => (
+                <button
+                  key={i}
+                  className={`highlight-dot ${i === highlightIndex ? 'active' : ''}`}
+                  onClick={() => setHighlightIndex(i)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : isLoading ? (
+        <section>
+          <h2 style={{ margin: '0 0 15px 0', color: '#fff', fontSize: '1.4rem', fontWeight: 'bold' }}>⭐ Destaques</h2>
+          <div style={{ position: 'relative' }}>
+            <div className="highlight-banner" style={{ backgroundColor: 'rgba(255,255,255,0.05)', animation: 'pulse-glow 2s infinite' }} />
+          </div>
+          <div className="highlight-dots">
+            <button className="highlight-dot active" style={{ animation: 'pulse-glow 2s infinite', cursor: 'default' }} />
+            <button className="highlight-dot" style={{ animation: 'pulse-glow 2s infinite', cursor: 'default' }} />
+            <button className="highlight-dot" style={{ animation: 'pulse-glow 2s infinite', cursor: 'default' }} />
+          </div>
+        </section>
+      ) : null}
+
+      {/* ===== FILMES E AGENDA ===== */}
+      {isLoading ? (
+        <section>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h2 style={{ margin: 0, color: '#fff', fontSize: '1.3rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              📅 Filmes e Agenda
+            </h2>
+          </div>
+          <div style={{ display: 'flex', gap: '20px', overflow: 'hidden', paddingBottom: '10px' }}>
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} style={{ flex: '0 0 190px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ width: '100%', aspectRatio: '2/3', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '16px', animation: 'pulse-glow 2s infinite' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '0 5px' }}>
+                  <div style={{ width: '90%', height: '18px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px', animation: 'pulse-glow 2s infinite' }} />
+                  <div style={{ width: '60%', height: '14px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px', animation: 'pulse-glow 2s infinite' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <section>
+          {/* Header com título */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h2 style={{ margin: 0, color: '#fff', fontSize: '1.3rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              📅 Filmes e Agenda
+            </h2>
+          </div>
+
+          {displayedMovies.length === 0 ? (
+            <div className="empty-state-cinema" style={{ padding: '40px 20px' }}>
+              {/* Ilustração de poltrona de cinema */}
+              <svg className="cinema-seat-svg" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="15" y="55" width="90" height="45" rx="12" fill="#1e293b" stroke="#334155" strokeWidth="2"/>
+                <rect x="20" y="25" width="80" height="35" rx="10" fill="#1e293b" stroke="#334155" strokeWidth="2"/>
+                <rect x="10" y="100" width="20" height="12" rx="4" fill="#334155"/>
+                <rect x="90" y="100" width="20" height="12" rx="4" fill="#334155"/>
+                <rect x="25" y="60" width="30" height="8" rx="4" fill="#334155"/>
+                <rect x="65" y="60" width="30" height="8" rx="4" fill="#334155"/>
+              </svg>
+              <h3 style={{ color: '#fff', fontSize: '1.2rem', margin: '0 0 8px 0', fontWeight: 'bold' }}>Sua agenda está vazia</h3>
+              <p style={{ color: '#8899aa', fontSize: '0.95rem', margin: 0, maxWidth: '400px', lineHeight: '1.4' }}>
+                Nenhum filme agendado daqui pra frente. Aproveite para explorar nossas recomendações e buscar novos filmes.
+              </p>
+            </div>
+          ) : (
+            <div style={{ position: 'relative' }}>
+              {displayedMovies.length > 4 && (
+                <button className="btn-secondary" onClick={() => document.getElementById('agenda-carousel')?.scrollBy({ left: -600, behavior: 'smooth' })} style={{ position: 'absolute', left: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 10, margin: 0, padding: '12px', borderRadius: '50%', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}><ArrowLeft size={20} /></button>
+              )}
+              
+              <div 
+                id="agenda-carousel"
+                className="hide-scrollbar"
+                style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '10px', scrollBehavior: 'smooth', msOverflowStyle: 'none', scrollbarWidth: 'none' }}
+              >
+                {displayedMovies.map(movie => (
+                  <div key={movie.id} style={{ flex: '0 0 190px' }}>
+                  <HomeMovieCardItem 
+                    movie={movie}
+                    onShowDetails={handleShowDetails}
+                    streamerMode={streamerMode}
+                  />
+                </div>
+              ))}
+              </div>
+              
+              {displayedMovies.length > 4 && (
+                <button className="btn-secondary" onClick={() => document.getElementById('agenda-carousel')?.scrollBy({ left: 600, behavior: 'smooth' })} style={{ position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 10, margin: 0, padding: '12px', borderRadius: '50%', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}><ArrowRight size={20} /></button>
+              )}
+            </div>
+          )}
+        </section>
       )}
+
+
+
       <MovieDetailsModal movie={selectedMovieDetails} onClose={() => setSelectedMovieDetails(null)} />
     </div>
   );

@@ -1,4 +1,5 @@
 import { useMemo, useEffect, useState, useRef } from 'react';
+import { ArrowLeft, ArrowUp } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -215,7 +216,7 @@ export default function HallOfTrash({ isOpen, onClose, movies, token, onUpdate }
 
       <div style={{ width: '100%', maxWidth: '1200px', padding: '40px 20px', boxSizing: 'border-box', position: 'relative' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: '30px', right: '30px', background: 'transparent', border: 'none', color: '#a3e635', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          ⬅️ Voltar ao Dashboard
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><ArrowLeft size={16} /> Voltar ao Dashboard</span>
         </button>
         
         <h1 style={{ color: '#84cc16', textAlign: 'center', fontSize: '3rem', margin: '0 0 10px 0', textTransform: 'uppercase', letterSpacing: '2px', textShadow: '0 4px 10px rgba(0,0,0,0.8)' }}>🗑️ Hall do Lixo</h1>
@@ -305,7 +306,7 @@ export default function HallOfTrash({ isOpen, onClose, movies, token, onUpdate }
           }}
           title="Voltar ao Topo"
         >
-          ⬆️
+          <ArrowUp size={24} />
         </button>
       )}
     </div>

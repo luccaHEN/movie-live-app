@@ -1,4 +1,5 @@
 import { useMemo, useEffect, useState, useRef } from 'react';
+import { ArrowLeft, ArrowUp } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -134,7 +135,7 @@ export default function HallOfFame({ isOpen, onClose, movies, champions, token, 
 
       <div style={{ width: '100%', maxWidth: '1200px', padding: '40px 20px', boxSizing: 'border-box', position: 'relative' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: '30px', right: '30px', background: 'transparent', border: 'none', color: '#fbbf24', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          ⬅️ Voltar ao Dashboard
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><ArrowLeft size={16} /> Voltar ao Dashboard</span>
         </button>
         
         <h1 style={{ color: '#fbbf24', textAlign: 'center', fontSize: '3rem', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '3px', textShadow: '0 4px 15px rgba(251,191,36,0.4)' }}>🏆 Hall da Fama</h1>
@@ -201,7 +202,7 @@ export default function HallOfFame({ isOpen, onClose, movies, champions, token, 
           }}
           title="Voltar ao Topo"
         >
-          ⬆️
+          <ArrowUp size={24} />
         </button>
       )}
     </div>

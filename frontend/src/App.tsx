@@ -13,6 +13,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import Modal from './components/Modal';
 import Sidebar from './components/Sidebar';
 import Podium from './components/Podium';
+import { Star, Crown, X, Trophy } from 'lucide-react';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
@@ -88,7 +89,7 @@ export default function App() {
         />
         
         <main className="main-content">
-          {view === 'home' && <Home token={token} streamerMode={streamerMode} user={user} />}
+          {view === 'home' && <Home token={token} streamerMode={streamerMode} stats={stats} setShowBestMoviesModal={setShowBestMoviesModal} setShowTopRescuersModal={setShowTopRescuersModal} />}
           {view === 'search' && <MovieSearch token={token} streamerMode={streamerMode} />}
           {view === 'saved' && <SavedMovies token={token} streamerMode={streamerMode} />}
           {view === 'dashboard' && <Dashboard token={token} username={user?.name} streamerMode={streamerMode} user={user} />}
@@ -124,7 +125,7 @@ export default function App() {
 
             {!champion ? (
               <>
-                <h2 style={{ marginBottom: '10px', color: '#fbbf24' }}>⭐ Desempate do Melhor Filme</h2>
+                <h2 style={{ marginBottom: '10px', color: '#fbbf24', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><Star size={24} fill="#fbbf24" /> Desempate do Melhor Filme</h2>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                   {stats.bestMovies.map((movie: any) => (
                     <div key={movie.id} style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '10px', border: '1px solid var(--input-border)', borderRadius: '8px' }}>
@@ -158,7 +159,7 @@ export default function App() {
                           }
                         }}
                       >
-                        {champion?.id === movie.id ? 'Remover ❌' : 'Coroar 👑'}
+                        {champion?.id === movie.id ? <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>Remover <X size={16} /></span> : <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>Coroar <Crown size={16} /></span>}
                       </button>
                     </div>
                   ))}
@@ -166,7 +167,7 @@ export default function App() {
               </>
             ) : (
               <div className="champion-card">
-                <h1 style={{ color: '#fbbf24', fontSize: '2rem', marginBottom: '15px', textTransform: 'uppercase', letterSpacing: '2px' }}>🏆 Campeão do Mês!</h1>
+                <h1 style={{ color: '#fbbf24', fontSize: '2rem', marginBottom: '15px', textTransform: 'uppercase', letterSpacing: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}><Trophy size={32} /> Campeão do Mês!</h1>
                 {champion.poster ? (
                   <img src={`https://image.tmdb.org/t/p/w300${champion.poster}`} alt={champion.title} style={{ width: '200px', borderRadius: '8px', marginBottom: '15px', boxShadow: '0 10px 20px rgba(0,0,0,0.5)' }} />
                 ) : (
@@ -174,8 +175,8 @@ export default function App() {
                 )}
                 <h2 style={{ fontSize: '1.8rem', margin: '10px 0' }}>{champion.title}</h2>
                 <p style={{ fontSize: '1.2rem', color: '#aaa' }}>Resgatado por: <strong style={{ color: '#fff' }}>{champion.requestedBy || 'Ninguém'}</strong></p>
-                <div style={{ marginTop: '15px', display: 'inline-block', background: '#fbbf24', color: '#000', padding: '5px 15px', borderRadius: '20px', fontWeight: 'bold', fontSize: '1.2rem' }}>
-                  Nota: {champion.streamerRating} ⭐
+                <div style={{ marginTop: '15px', display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#fbbf24', color: '#000', padding: '5px 15px', borderRadius: '20px', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                  Nota: {champion.streamerRating} <Star size={16} fill="#000" color="#000" />
                 </div>
               </div>
             )}
@@ -183,7 +184,7 @@ export default function App() {
 
       {/* Modal do Pódio do Mês na Sidebar */}
       <Modal isOpen={showTopRescuersModal} onClose={() => setShowTopRescuersModal(false)}>
-        <h2 style={{ marginBottom: '25px', color: 'var(--primary)', textAlign: 'center' }}>🏆 Pódio do Mês</h2>
+        <h2 style={{ marginBottom: '25px', color: 'var(--primary)', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><Trophy size={24} /> Pódio do Mês</h2>
         <Podium ranking={stats.monthRanking || []} />
       </Modal>
       </>
