@@ -113,7 +113,7 @@ export default function Home({ token, streamerMode, stats, setShowBestMoviesModa
     .slice(0, 5);
 
   const terrorDaSemana = movies
-    .filter(m => m.watchDate && String(m.watchDate).split('T')[0] >= today && !m.watched && m.genre?.toLowerCase().includes('terror'))
+    .filter(m => m.watchDate && String(m.watchDate).split('T')[0] >= today && !m.watched && new Date(m.watchDate).getUTCDay() === 5)
     .sort((a, b) => new Date(a.watchDate).getTime() - new Date(b.watchDate).getTime())[0];
 
   const bannerSlides: any[] = [...highlightMovies.map(m => ({ type: 'movie', data: m }))];
