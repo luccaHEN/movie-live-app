@@ -113,7 +113,7 @@ export default function Home({ token, streamerMode, stats, setShowBestMoviesModa
     .slice(0, 5);
 
   const terrorDaSemana = movies
-    .filter(m => m.watchDate && String(m.watchDate).split('T')[0] >= today && !m.watched && new Date(m.watchDate).getUTCDay() === 5)
+    .filter(m => m.watchDate && String(m.watchDate).split('T')[0] >= today && !m.watched && new Date(m.watchDate).getUTCDay() === 5 && (m.genre?.toLowerCase().includes('terror') || m.genre?.toLowerCase().includes('horror')))
     .sort((a, b) => new Date(a.watchDate).getTime() - new Date(b.watchDate).getTime())[0];
 
   const bannerSlides: any[] = [...highlightMovies.map(m => ({ type: 'movie', data: m }))];
@@ -347,7 +347,7 @@ export default function Home({ token, streamerMode, stats, setShowBestMoviesModa
                       <p style={{ fontSize: '1.1rem', color: '#bfdbfe', margin: '0 0 10px 0' }}>Dominando a agenda com <strong style={{ color: '#fff' }}>{currentHighlight.data.count} resgates</strong> no ranking geral!</p>
                       
                       <button onClick={() => setShowTopRescuersModal && setShowTopRescuersModal(true)} style={{ alignSelf: 'flex-start', background: 'rgba(59,130,246,0.2)', border: '1px solid #3b82f6', color: '#fff', padding: '10px 25px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.9rem' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#3b82f6'; e.currentTarget.style.boxShadow = '0 0 20px rgba(59,130,246,0.5)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(59,130,246,0.2)'; e.currentTarget.style.boxShadow = 'none'; }}>
-                        Ver Ranking Completo
+                        Ver Pódio
                       </button>
                     </div>
                  </div>
