@@ -3,7 +3,7 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import MovieDetailsModal from './MovieDetailsModal';
 import Modal from './Modal';
-import { ArrowUp, Star } from 'lucide-react';
+import { ArrowUp, Star, Search } from 'lucide-react';
 
 const TMDB_GENRES: Record<number, string> = {
   28: "Ação", 12: "Aventura", 16: "Animação", 35: "Comédia", 80: "Crime",
@@ -254,15 +254,119 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
 
   return (
     <>
-      <form onSubmit={handleSearch} className="search-form" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-        <input type="text" placeholder="Ex: Batman..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ width: '400px' }} />
-        <select value={selectedGenre} onChange={e => setSelectedGenre(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--input-border)', backgroundColor: '#1a1a1a', color: '#fff', outline: 'none' }}>
+      <style>
+        {`
+          .premium-search-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 12px 25px;
+            border-radius: 50px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto 40px auto;
+          }
+          .premium-search-container:focus-within {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(59, 130, 246, 0.6);
+            box-shadow: 0 8px 32px 0 rgba(59, 130, 246, 0.15), 0 0 20px rgba(59, 130, 246, 0.25);
+            transform: translateY(-3px);
+          }
+          .premium-search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1.15rem;
+            outline: none;
+            padding: 5px 0;
+            width: 100%;
+          }
+          .premium-search-input:focus {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+          }
+          .premium-search-input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+            font-weight: 300;
+          }
+          .premium-search-icon {
+            color: rgba(255, 255, 255, 0.4);
+            transition: color 0.4s ease, transform 0.4s ease;
+          }
+          .premium-search-container:focus-within .premium-search-icon {
+            color: #3b82f6;
+            transform: scale(1.1);
+          }
+          .premium-genre-select {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.05rem;
+            outline: none;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            transition: color 0.3s;
+          }
+          .premium-genre-select:hover, .premium-genre-select:focus {
+            color: #fff;
+          }
+          .premium-genre-select option {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+          }
+          .premium-clear-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #aaa;
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            padding: 0;
+            font-size: 18px;
+          }
+          .premium-clear-btn:hover {
+            background: var(--danger);
+            border-color: var(--danger);
+            color: #fff;
+            transform: rotate(90deg);
+          }
+        `}
+      </style>
+
+      <form onSubmit={handleSearch} className="premium-search-container">
+        <Search className="premium-search-icon" size={24} />
+        <input 
+          type="text" 
+          className="premium-search-input"
+          placeholder="Ex: Batman, O Senhor dos Anéis, Interestelar..." 
+          value={searchQuery} 
+          onChange={e => setSearchQuery(e.target.value)} 
+        />
+        <select className="premium-genre-select" value={selectedGenre} onChange={e => setSelectedGenre(e.target.value)}>
           <option value="">Todos os Gêneros</option>
           {Object.entries(TMDB_GENRES).map(([id, name]) => (
             <option key={id} value={id}>{name}</option>
           ))}
         </select>
-        <button type="button" className="btn-secondary" onClick={handleClearSearch}>Limpar / Populares</button>
+        {(searchQuery || selectedGenre) && (
+          <button type="button" className="premium-clear-btn" onClick={handleClearSearch} title="Limpar busca">
+            &times;
+          </button>
+        )}
       </form>
       
         <div className="movies-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', width: '100%', maxWidth: '100%', gap: '20px' }}>
@@ -332,11 +436,12 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
             </div>
             </div>
           ))}
+          {isLoading && Array.from({ length: 20 }).map((_, i) => (
+            <div key={`skeleton-${i}`} className="skeleton-card" style={{ width: '100%', height: '400px' }}></div>
+          ))}
         </div>
 
-      {isLoading && (
-        <p style={{ textAlign: 'center', marginTop: '30px', marginBottom: '30px', fontSize: '1.2rem', width: '100%' }}>Buscando... 🍿</p>
-      )}
+
       
       {/* Elemento invisível no final da lista que funciona como "gatilho" para carregar mais */}
       {!isLoading && hasMore && movies.length > 0 && (

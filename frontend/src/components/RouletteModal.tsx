@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
+import { createPortal } from 'react-dom';
 
 const tickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
 const winSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3');
@@ -162,7 +163,7 @@ export default function RouletteModal({ isOpen, onClose, token, streamerMode, fe
     }
   };
 
-  return (
+  return createPortal(
     <div className="modal-overlay">
       <style>
         {`
@@ -193,7 +194,7 @@ export default function RouletteModal({ isOpen, onClose, token, streamerMode, fe
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
-                <input type="text" placeholder="Buscar filme..." value={rouletteSearchQuery} onChange={e => setRouletteSearchQuery(e.target.value)} style={{ flex: 1, paddingRight: '35px' }} />
+                <input type="text" placeholder="Buscar filme..." value={rouletteSearchQuery} onChange={e => setRouletteSearchQuery(e.target.value)} style={{ flex: 1, padding: '10px', paddingRight: '35px', borderRadius: '8px', border: '1px solid var(--input-border)', backgroundColor: 'var(--card-bg)', color: 'var(--text-color)', outline: 'none' }} />
                 {rouletteSearchQuery && <button onClick={() => { setRouletteSearchQuery(''); setRouletteSearchResults([]); }} style={{ position: 'absolute', right: '10px', background: 'transparent', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: '1.5rem', padding: 0 }}>&times;</button>}
               </div>
               {isSearching && <span style={{ fontSize: '0.85rem', color: '#aaa', width: '50px' }}>Buscando...</span>}
@@ -285,6 +286,7 @@ export default function RouletteModal({ isOpen, onClose, token, streamerMode, fe
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 :root {
+  color-scheme: dark;
   --bg-color: #0b0b0e;
   --card-bg: rgba(255, 255, 255, 0.03);
   --text-color: #f1f1f1;
@@ -108,22 +109,56 @@ body {
   align-items: center;
   gap: 12px;
   font-weight: 500;
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar-btn::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--primary);
+  transform: scaleY(0);
+  transition: transform 0.3s ease;
+  box-shadow: 0 0 10px var(--primary);
+  border-radius: 0 4px 4px 0;
 }
 
 .sidebar-btn:hover {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.03);
   transform: translateX(5px);
   color: #fff;
 }
+.sidebar-btn:hover::before {
+  transform: scaleY(0.4);
+}
 
 .sidebar-btn.active {
-  background: var(--primary);
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.15), transparent);
   color: white;
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+  border-radius: 0 8px 8px 0;
+}
+
+.sidebar-btn.active::before {
+  transform: scaleY(1);
 }
 
 .sidebar-btn.active:hover {
-  transform: none;
+  transform: translateX(5px);
+}
+
+.sidebar-btn svg {
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.3s ease;
+}
+.sidebar-btn:hover svg {
+  transform: scale(1.15) rotate(8deg);
+  color: var(--primary);
+}
+.sidebar-btn.active svg {
+  color: var(--primary);
 }
 
 .sidebar-footer {
@@ -137,6 +172,11 @@ body {
   color: var(--danger);
 }
 
+@keyframes pageFadeIn {
+  0% { opacity: 0; transform: translateY(15px); }
+  100% { opacity: 1; transform: none; }
+}
+
 /* Conteúdo Principal */
 .main-content {
   flex-grow: 1;
@@ -148,6 +188,10 @@ body {
   height: 100vh;
   overflow-y: auto;
   box-sizing: border-box;
+}
+
+.main-content > div {
+  animation: pageFadeIn 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 .app-title {
@@ -171,19 +215,65 @@ button {
   text-transform: uppercase;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   color: white;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
 }
 
-.btn-primary { background-color: var(--primary); }
-.btn-primary:hover { background-color: var(--primary-hover); transform: scale(1.05); }
+button::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: rgba(255,255,255,0.1);
+  transform: rotate(45deg) translateY(100%);
+  transition: transform 0.5s ease-out;
+  z-index: -1;
+}
+button:hover::after {
+  transform: rotate(45deg) translateY(-100%);
+}
 
-.btn-secondary { background-color: var(--secondary); }
-.btn-secondary:hover { background-color: var(--secondary-hover); }
+.btn-primary { 
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8); 
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+}
+.btn-primary:hover { 
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+  transform: translateY(-2px) scale(1.02); 
+}
 
-.btn-success { background-color: var(--success); width: 100%; }
-.btn-success:hover { background-color: var(--success-hover); }
+.btn-secondary { 
+  background: linear-gradient(135deg, #2a2a30, #1f1f23); 
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.btn-secondary:hover { 
+  background: linear-gradient(135deg, #33333a, #2a2a30);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
 
-.btn-danger { background-color: var(--danger); width: 100%; }
-.btn-danger:hover { background-color: var(--danger-hover); }
+.btn-success { 
+  background: linear-gradient(135deg, #10b981, #059669); 
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  width: 100%; 
+}
+.btn-success:hover { 
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+  transform: translateY(-2px) scale(1.02); 
+}
+
+.btn-danger { 
+  background: linear-gradient(135deg, #ef4444, #b91c1c); 
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+  width: 100%; 
+}
+.btn-danger:hover { 
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+  transform: translateY(-2px) scale(1.02); 
+}
 
 /* Forms & Inputs */
 .login-container {
@@ -206,7 +296,13 @@ button {
   box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
 
-/* Landing Page / Login */
+/* Landing Page / Login Epic */
+@keyframes epicBg {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 .landing-wrapper {
   display: flex;
   min-height: 100vh;
@@ -215,12 +311,15 @@ button {
   padding: 20px;
   box-sizing: border-box;
   position: relative;
+  background: linear-gradient(-45deg, #0b0b0e, #1e1b4b, #0f172a, #0b0b0e);
+  background-size: 400% 400%;
+  animation: epicBg 15s ease infinite;
 }
 .landing-wrapper::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.8) 100%);
   z-index: 1;
 }
 .landing-container {
@@ -289,6 +388,11 @@ input {
   box-sizing: border-box;
   width: 100%;
   transition: all 0.3s ease;
+}
+
+select option {
+  background-color: var(--bg-color);
+  color: var(--text-color);
 }
 
 input:focus {
@@ -429,13 +533,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   box-shadow: 0 8px 25px rgba(0,0,0,0.4);
   border: var(--glass-border);
   backdrop-filter: blur(10px);
-  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease, border-color 0.4s ease;
+  perspective: 1000px;
 }
 
 .movie-card:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 15px 35px rgba(59, 130, 246, 0.15);
-  border-color: rgba(59, 130, 246, 0.4);
+  transform: translateY(-10px) scale(1.03) rotateZ(1deg);
+  box-shadow: -5px 15px 35px rgba(59, 130, 246, 0.15), 5px -15px 35px rgba(16, 185, 129, 0.1);
+  border-color: rgba(59, 130, 246, 0.6);
 }
 
 .movie-card-header {
@@ -465,6 +570,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   object-fit: cover;
   border-radius: 8px;
   box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.movie-card:hover .movie-poster {
+  box-shadow: 0 12px 30px rgba(0,0,0,0.8);
+  filter: brightness(1.15) contrast(1.1);
+  transform: translateY(-4px);
 }
 
 .movie-poster-placeholder {
@@ -476,6 +588,22 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   justify-content: center;
   border-radius: 4px;
   color: #777;
+}
+
+/* Skeletons */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-card {
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+  border: var(--glass-border);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+  backdrop-filter: blur(10px);
 }
 
 /* Modal */
@@ -571,26 +699,28 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   margin-top: 3px;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar Premium */
 html {
   scrollbar-width: thin;
-  scrollbar-color: var(--secondary) var(--bg-color);
+  scrollbar-color: rgba(59, 130, 246, 0.4) var(--bg-color);
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
   background: var(--bg-color);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--secondary);
-  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.3);
+  border-radius: 10px;
+  border: 2px solid var(--bg-color);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--secondary-hover);
+  background: rgba(59, 130, 246, 0.8);
 }

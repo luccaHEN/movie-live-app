@@ -3,6 +3,7 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import MovieDetailsModal from './MovieDetailsModal';
 import Modal from './Modal';
+import { Search } from 'lucide-react';
 
 interface SavedMoviesProps {
   token: string;
@@ -403,20 +404,75 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
           .draggable-card:active {
             cursor: grabbing;
           }
+          .sidebar-premium-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px 15px 12px 42px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-color);
+            outline: none;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            font-size: 0.95rem;
+          }
+          .sidebar-premium-input:focus {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(59, 130, 246, 0.6);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.15), 0 0 15px rgba(59, 130, 246, 0.25);
+            transform: translateY(-2px);
+          }
+          .sidebar-premium-input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+          }
+          .search-icon-wrapper {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255,255,255,0.4);
+            transition: all 0.3s ease;
+            pointer-events: none;
+          }
+          .search-container:focus-within .search-icon-wrapper {
+            color: #3b82f6;
+            transform: translateY(-50%) scale(1.1);
+          }
+          .sidebar-premium-select {
+            padding: 10px 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-color);
+            outline: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            cursor: pointer;
+            width: 100%;
+            font-size: 0.95rem;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+          }
+          .sidebar-premium-select:hover, .sidebar-premium-select:focus {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(59, 130, 246, 0.5);
+          }
         `}
       </style>
       
       {/* Painel lateral de Filtros */}
-      <div style={{ display: 'flex', flexDirection: 'column', width: '250px', minWidth: '250px', flexShrink: 0, gap: '20px', position: 'sticky', top: '20px', maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', zIndex: 10, backgroundColor: 'var(--bg-color)', paddingRight: '5px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', width: '250px', minWidth: '250px', flexShrink: 0, gap: '20px', position: 'sticky', top: '20px', maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', zIndex: 10, backgroundColor: 'var(--bg-color)', padding: '15px 5px 15px 10px' }}>
         
         {/* Barra de Pesquisa */}
-        <div style={{ width: '100%' }}>
+        <div className="search-container" style={{ width: '100%', position: 'relative' }}>
+          <Search size={18} className="search-icon-wrapper" />
           <input 
             type="text" 
-            placeholder={streamerMode ? "🔍 Buscar filme ou nick..." : "🔍 Buscar filme..."}
+            placeholder={streamerMode ? "Buscar filme ou nick..." : "Buscar filme..."}
             value={rescuerFilter} 
             onChange={e => setRescuerFilter(e.target.value)} 
-            style={{ width: '100%', boxSizing: 'border-box' }}
+            className="sidebar-premium-input"
           />
         </div>
 
@@ -435,7 +491,7 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
             <select 
               value={selectedMonth} 
               onChange={e => setSelectedMonth(e.target.value)}
-              style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--input-border)', backgroundColor: 'var(--card-bg)', color: 'var(--text-color)', outline: 'none' }}
+              className="sidebar-premium-select"
             >
               <option value="ALL">Todos os Filmes</option>
               {uniqueMonthKeys.map(key => (
@@ -451,7 +507,7 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
           <select 
             value={sortBy} 
             onChange={e => setSortBy(e.target.value as any)}
-            style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--input-border)', backgroundColor: 'var(--card-bg)', color: 'var(--text-color)', outline: 'none' }}
+            className="sidebar-premium-select"
           >
             <option value="DATE">📅 Data de Agendamento</option>
             <option value="RATING_DESC">⭐ Maior Nota</option>
@@ -505,19 +561,19 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
           {selectedMonth === 'ALL' ? 'Todos os Filmes Salvos' : `Meus Filmes - ${getMonthLabel(selectedMonth)}`}
         </h2>
 
+      <div className="movies-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', width: '100%', maxWidth: '100%', gap: '20px', marginTop: '0' }}>
       {isLoading ? (
-        <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '1.2rem' }}>Carregando filmes... 🍿</p>
-      ) : (
-        <div className="movies-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', width: '100%', maxWidth: '100%', gap: '20px', marginTop: '0' }}>
-        {currentMovies.length === 0 ? <p>Nenhum filme encontrado para este filtro.</p> : currentMovies.map((movie: any) => (
-          <MovieCardItem 
-            key={movie.id} movie={movie} onUpdate={handleUpdateMovie} onDelete={handleDeleteMovie}
-            onShowDetails={handleShowDetails} sortBy={sortBy} draggedMovieId={draggedMovieId} dragOverMovieId={dragOverMovieId}
-            setDraggedMovieId={setDraggedMovieId} setDragOverMovieId={setDragOverMovieId} onDrop={handleDrop} streamerMode={streamerMode}
-          />
-        ))}
-        </div>
-      )}
+        Array.from({ length: 20 }).map((_, i) => (
+          <div key={`skeleton-${i}`} className="skeleton-card" style={{ width: '100%', height: '400px' }}></div>
+        ))
+      ) : currentMovies.length === 0 ? <p style={{ gridColumn: '1 / -1', textAlign: 'center' }}>Nenhum filme encontrado para este filtro.</p> : currentMovies.map((movie: any) => (
+        <MovieCardItem 
+          key={movie.id} movie={movie} onUpdate={handleUpdateMovie} onDelete={handleDeleteMovie}
+          onShowDetails={handleShowDetails} sortBy={sortBy} draggedMovieId={draggedMovieId} dragOverMovieId={dragOverMovieId}
+          setDraggedMovieId={setDraggedMovieId} setDragOverMovieId={setDragOverMovieId} onDrop={handleDrop} streamerMode={streamerMode}
+        />
+      ))}
+      </div>
 
     {/* Controles de Paginação */}
     {totalPages > 1 && (

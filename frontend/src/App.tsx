@@ -69,9 +69,12 @@ export default function App() {
         position="bottom-right" 
         toastOptions={{
           style: {
-            background: 'var(--card-bg)',
+            background: 'rgba(18, 18, 22, 0.75)',
             color: 'var(--text-color)',
-            border: '1px solid var(--input-border)'
+            border: 'var(--glass-border)',
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+            borderRadius: '12px'
           },
           success: { iconTheme: { primary: 'var(--success)', secondary: '#fff' } },
           error: { iconTheme: { primary: 'var(--danger)', secondary: '#fff' } },

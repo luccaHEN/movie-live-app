@@ -2,6 +2,7 @@ import { useMemo, useEffect, useState, useRef } from 'react';
 import { ArrowLeft, ArrowUp } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { createPortal } from 'react-dom';
 
 interface HallOfTrashProps {
   isOpen: boolean;
@@ -173,7 +174,7 @@ export default function HallOfTrash({ isOpen, onClose, movies, token, onUpdate }
     containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  return (
+  return createPortal(
     <div ref={containerRef} onScroll={handleScroll} style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 3000, backgroundImage: 'linear-gradient(135deg, rgba(26, 28, 24, 0.85) 0%, rgba(47, 56, 34, 0.85) 50%, rgba(28, 21, 17, 0.95) 100%), url("/lixo.jpg")', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', scrollBehavior: 'smooth' }}>
       <style>
         {`
@@ -309,6 +310,7 @@ export default function HallOfTrash({ isOpen, onClose, movies, token, onUpdate }
           <ArrowUp size={24} />
         </button>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

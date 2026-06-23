@@ -134,9 +134,9 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '10px', flexWrap: 'wrap', gap: '15px' }}>
         <h2 style={{ color: 'var(--primary)', margin: '0' }}>Estatísticas da Stream 📊</h2>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <button onClick={() => setShowHallOfFame(true)} className="btn-secondary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto', backgroundColor: '#fbbf24', borderColor: '#fbbf24', color: '#000', fontWeight: 'bold' }}>🏆 Hall da Fama</button>
-          <button onClick={() => setShowHallOfTrash(true)} className="btn-secondary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto', backgroundColor: '#3f6212', borderColor: '#4d7c0f', color: '#fff', fontWeight: 'bold' }}>🗑️ Hall do Lixo</button>
-          <button onClick={() => setShowRoulette(true)} className="btn-secondary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto', backgroundColor: '#8b5cf6', borderColor: '#8b5cf6', color: '#fff' }}>🎲 Roleta</button>
+          <button onClick={() => setShowHallOfFame(true)} className="btn-secondary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto', background: 'linear-gradient(135deg, #f59e0b, #d97706)', border: 'none', color: '#fff', fontWeight: 'bold' }}>🏆 Hall da Fama</button>
+          <button onClick={() => setShowHallOfTrash(true)} className="btn-secondary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto', background: 'linear-gradient(135deg, #65a30d, #166534)', border: 'none', color: '#fff', fontWeight: 'bold' }}>🗑️ Hall do Lixo</button>
+          <button onClick={() => setShowRoulette(true)} className="btn-secondary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto', background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', border: 'none', color: '#fff', fontWeight: 'bold' }}>🎲 Roleta</button>
           {streamerMode && (
             <button onClick={handleCopyPublicLink} className="btn-primary" style={{ padding: '8px 15px', fontSize: '0.9rem', width: 'auto' }}>🔗 Copiar Link Agenda</button>
           )}
