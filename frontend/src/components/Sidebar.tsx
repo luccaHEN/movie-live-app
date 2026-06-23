@@ -1,17 +1,13 @@
-import { Home, Search, Film, BarChart2, Settings as SettingsIcon, UserPlus, Trophy, Star, Rocket, LogOut } from 'lucide-react';
+import { Home, Search, Film, BarChart2, Settings as SettingsIcon, UserPlus, LogOut } from 'lucide-react';
 
 interface SidebarProps {
   view: string;
   handleNavigation: (view: any) => void;
   user: any;
   handleLogout: () => void;
-  streamerMode: boolean;
-  stats: any;
-  setShowBestMoviesModal: (val: boolean) => void;
-  setShowTopRescuersModal: (val: boolean) => void;
 }
 
-export default function Sidebar({ view, handleNavigation, user, handleLogout, streamerMode, stats, setShowBestMoviesModal, setShowTopRescuersModal }: SidebarProps) {
+export default function Sidebar({ view, handleNavigation, user, handleLogout }: SidebarProps) {
   return (
     <aside className="sidebar">
       <h1 className="sidebar-title" onClick={() => handleNavigation('home')} style={{ cursor: 'pointer' }}>Sumasflix</h1>

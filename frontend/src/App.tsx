@@ -85,7 +85,6 @@ export default function App() {
           <div className="app-container">
         <Sidebar 
           view={view} handleNavigation={handleNavigation} user={user} handleLogout={handleLogout}
-          streamerMode={streamerMode} stats={stats} setShowBestMoviesModal={setShowBestMoviesModal} setShowTopRescuersModal={setShowTopRescuersModal}
         />
         
         <main className="main-content">
