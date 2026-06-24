@@ -10,7 +10,7 @@ const HomeMovieCardItem = React.memo(({ movie, onShowDetails, streamerMode }: an
   return (
     <>
       <div 
-        style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px', boxSizing: 'border-box' }}
+        style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px', boxSizing: 'border-box', padding: '4px' }}
       >
         {/* Pôster com Overlay Glassmorphism */}
         <div 
@@ -25,15 +25,20 @@ const HomeMovieCardItem = React.memo(({ movie, onShowDetails, streamerMode }: an
              <div style={{ width: '100%', height: '100%', backgroundColor: '#222', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888' }}>Sem capa</div>
           )}
           
-          {movie.watched && (
-            <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(16, 185, 129, 0.9)', color: '#fff', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold', zIndex: 2, backdropFilter: 'blur(4px)', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
-              ✓ Assistido
-            </div>
-          )}
+          {/* Container de Badges (Data e Assistido) */}
+          <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '5px', zIndex: 2, pointerEvents: 'none' }}>
+            {/* Badge de Data sempre visível na Agenda */}
+            {movie.watchDate && (
+              <div style={{ background: 'rgba(0,0,0,0.8)', color: 'var(--primary)', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold', backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                {new Date(movie.watchDate).toLocaleDateString('pt-BR', { timeZone: 'UTC', weekday: 'short', day: '2-digit', month: '2-digit' }).toUpperCase()}
+              </div>
+            )}
 
-          {/* Badge de Data sempre visível na Agenda */}
-          <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.8)', color: 'var(--primary)', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold', zIndex: 2, backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-            {new Date(movie.watchDate).toLocaleDateString('pt-BR', { timeZone: 'UTC', weekday: 'short', day: '2-digit', month: '2-digit' }).toUpperCase()}
+            {movie.watched && (
+              <div style={{ background: 'rgba(16, 185, 129, 0.9)', color: '#fff', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold', backdropFilter: 'blur(4px)', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
+                ✓ Assistido
+              </div>
+            )}
           </div>
         </div>
 
