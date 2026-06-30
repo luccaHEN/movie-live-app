@@ -75,40 +75,22 @@ export default function Dashboard({ token, username, streamerMode }: DashboardPr
     try {
       const genreTime: Record<string, number> = {};
       
-      const chunkSize = 5;
       const watchedList = rawMoviesForGenre.filter((m: any) => m.watched);
-      for (let i = 0; i < watchedList.length; i += chunkSize) {
-        const chunk = watchedList.slice(i, i + chunkSize);
-        
-        await Promise.all(chunk.map(async (m: any) => {
-          let runtime = m.runtime || 105;
-          let genres = ['Desconhecido'];
+      
+      watchedList.forEach((m: any) => {
+        const runtime = m.runtime || 105;
+        let genres = ['Desconhecido'];
 
-          // Se o backend tiver retornado o gênero salvo
-          if (m.genre && m.genre !== 'N/A' && m.genre !== 'Desconhecido') {
-            genres = m.genre.split(', ');
-          } else if (m.tmdbId) {
-            // Filmes antigos não têm gênero salvo, busca no TMDB
-            try {
-              const res = await api.get(`/movies/tmdb/${m.tmdbId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
-              if (res.data.runtime) runtime = res.data.runtime;
-              if (res.data.genres && res.data.genres.length > 0) {
-                genres = res.data.genres.map((g: any) => g.name);
-              }
-            } catch (e) {
-              console.error(`Erro ao buscar detalhes do filme ${m.tmdbId}`);
-            }
-          }
+        if (m.genre && m.genre !== 'N/A' && m.genre !== 'Desconhecido') {
+          genres = m.genre.split(', ');
+        }
 
-          // Divide o tempo do filme pelo número de gêneros para a conta fechar exatamente com o Tempo de Tela
-          const timePerGenre = runtime / genres.length;
-          genres.forEach((g: string) => {
-            genreTime[g] = (genreTime[g] || 0) + timePerGenre;
-          });
-        }));
-      }
+        // Divide o tempo do filme pelo número de gêneros para a conta fechar exatamente com o Tempo de Tela
+        const timePerGenre = runtime / genres.length;
+        genres.forEach((g: string) => {
+          genreTime[g] = (genreTime[g] || 0) + timePerGenre;
+        });
+      });
 
       const ranking = Object.entries(genreTime)
         .map(([genre, minutes]) => ({ genre, hours: (minutes / 60).toFixed(1) }))

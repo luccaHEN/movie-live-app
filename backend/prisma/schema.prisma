@@ -12,6 +12,7 @@ model Movie {
   tmdbId   Int?      // Retiramos o @unique daqui
   poster   String?
   genre    String?
+  runtime  Int?
 
   // Relação com o Usuário
   userId   Int

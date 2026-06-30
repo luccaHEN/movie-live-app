@@ -65,48 +65,21 @@ export class MovieController {
         return res.json(response.data.results);
       }
 
-      // Busca "multi" original em Português
+      // Busca original em Português
       const searchPromises = [
-        axios.get(`https://api.themoviedb.org/3/search/multi`, {
+        axios.get(`https://api.themoviedb.org/3/search/movie`, {
           params: { query: query as string, language: 'pt-BR', page },
           headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
         })
       ];
 
       // Busca Bilíngue: Faz a mesma busca forçando o idioma original/inglês
-      // Isso ajuda a encontrar filmes pelo nome original quando a busca em pt-BR falha
       searchPromises.push(
-        axios.get(`https://api.themoviedb.org/3/search/multi`, {
+        axios.get(`https://api.themoviedb.org/3/search/movie`, {
           params: { query: query as string, language: 'en-US', page },
           headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
         })
       );
-
-      // Remove palavras comuns (stop words) que atrapalham a busca do TMDB
-      const stopWords = ['o', 'a', 'os', 'as', 'um', 'uma', 'se', 'que', 'de', 'do', 'da', 'no', 'na', 'em', 'filme', 'assistir'];
-      const cleanedQuery = (query as string)
-        .toLowerCase()
-        .replace(/[,.-]/g, ' ')
-        .split(/\s+/)
-        .filter(w => !stopWords.includes(w))
-        .join(' ')
-        .trim();
-
-      // Se a string limpa for diferente, fazemos buscas extras em paralelo
-      if (cleanedQuery && cleanedQuery !== (query as string).toLowerCase().trim()) {
-        searchPromises.push(
-          axios.get(`https://api.themoviedb.org/3/search/multi`, {
-            params: { query: cleanedQuery, language: 'pt-BR', page },
-            headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
-          })
-        );
-        searchPromises.push(
-          axios.get(`https://api.themoviedb.org/3/search/multi`, {
-            params: { query: cleanedQuery, language: 'en-US', page },
-            headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
-          })
-        );
-      }
 
       const responses = await Promise.all(searchPromises);
 
@@ -114,12 +87,7 @@ export class MovieController {
       // Juntamos os resultados de todas as buscas (a original vem primeiro)
       for (const response of responses) {
         for (const item of response.data.results) {
-          if (item.media_type === 'movie') {
-            results.push(item);
-          } else if (item.media_type === 'person' && item.known_for) {
-            // Se encontrou uma pessoa, adiciona os filmes pelos quais ela é conhecida
-            results.push(...item.known_for.filter((k: any) => k.media_type === 'movie'));
-          }
+          results.push(item);
         }
       }
 
@@ -143,6 +111,31 @@ export class MovieController {
     } catch (error: any) {
       console.error('Detalhes do Erro TMDB:', error.response?.data || error.message);
       return res.status(500).json({ error: 'Erro ao buscar filmes no TMDB', details: error.response?.data });
+    }
+  }
+
+  async reorder(req: Request, res: Response): Promise<Response | any> {
+    const { updates } = req.body;
+    const userId = (req as any).userId;
+
+    if (!Array.isArray(updates)) {
+      return res.status(400).json({ error: 'Formato inválido para reordenação.' });
+    }
+
+    try {
+      const transactions = updates.map((update: any) =>
+        prisma.movie.update({
+          where: { id: update.id, userId },
+          data: { watchDate: new Date(update.watchDate) }
+        })
+      );
+
+      await prisma.$transaction(transactions);
+
+      return res.json({ message: 'Ordem atualizada com sucesso.' });
+    } catch (error: any) {
+      console.error('Erro ao reordenar:', error);
+      return res.status(500).json({ error: 'Erro ao reordenar filmes', details: error.message });
     }
   }
 
@@ -178,16 +171,35 @@ export class MovieController {
     const userId = (req as any).userId; // Pegando o usuário que fez a requisição
 
     try {
+      let runtime = null;
+      let finalGenre = genre;
+      
+      if (tmdbId) {
+        try {
+          const tmdbRes = await axios.get(`https://api.themoviedb.org/3/movie/${tmdbId}?language=pt-BR`, {
+            headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
+          });
+          runtime = tmdbRes.data.runtime || null;
+          if (tmdbRes.data.genres && tmdbRes.data.genres.length > 0) {
+            finalGenre = tmdbRes.data.genres.map((g: any) => g.name).join(', ');
+          }
+        } catch (e) {
+          console.error('Erro ao buscar detalhes adicionais do TMDB na criação');
+        }
+      }
+
       let movie = await prisma.movie.findFirst({ where: { tmdbId, userId } });
       if (!movie) {
-        movie = await prisma.movie.create({ data: { title, tmdbId, poster, genre, userId, requestedBy, watchDate: watchDate ? new Date(watchDate) : null } });
+        movie = await prisma.movie.create({ data: { title, tmdbId, poster, genre: finalGenre, runtime, userId, requestedBy, watchDate: watchDate ? new Date(watchDate) : null } });
       } else {
         // Se o filme já existir, atualizamos com o novo Nick e Data agendada
         movie = await prisma.movie.update({
           where: { id: movie.id },
           data: {
             requestedBy: requestedBy !== undefined ? requestedBy : movie.requestedBy,
-            watchDate: watchDate ? new Date(watchDate) : (watchDate === null ? null : movie.watchDate)
+            watchDate: watchDate ? new Date(watchDate) : (watchDate === null ? null : movie.watchDate),
+            runtime: runtime || movie.runtime,
+            genre: finalGenre || movie.genre
           }
         });
       }
@@ -265,9 +277,81 @@ export class MovieController {
   }
 
   async index(req: Request, res: Response): Promise<Response | any> {
-    const userId = (req as any).userId; // Pegando o usuário que fez a requisição
+    const userId = (req as any).userId;
+    const { page, limit, status, sortBy, month, search } = req.query;
 
     try {
+      if (page) {
+        const pageNum = parseInt(page as string, 10);
+        const limitNum = parseInt((limit as string) || '35', 10);
+        const skip = (pageNum - 1) * limitNum;
+
+        const where: any = { userId };
+        
+        if (status === 'WATCHED') where.watched = true;
+        if (status === 'UNWATCHED') where.watched = false;
+
+        if (month && month !== 'ALL') {
+          if (month === 'none') {
+            where.watchDate = null;
+          } else {
+            const year = parseInt((month as string).split('-')[0], 10);
+            const monthNum = parseInt((month as string).split('-')[1], 10);
+            const startDate = new Date(Date.UTC(year, monthNum - 1, 1));
+            const endDate = new Date(Date.UTC(year, monthNum, 1));
+            where.watchDate = { gte: startDate, lt: endDate };
+          }
+        }
+
+        if (search) {
+          where.OR = [
+            { title: { contains: search as string, mode: 'insensitive' } },
+            { requestedBy: { contains: search as string, mode: 'insensitive' } }
+          ];
+        }
+
+        let orderBy: any = {};
+        if (sortBy === 'ALPHA') orderBy = { title: 'asc' };
+        else if (sortBy === 'RATING_DESC') {
+          where.streamerRating = { not: null };
+          orderBy = { streamerRating: 'desc' };
+        }
+        else if (sortBy === 'RATING_ASC') {
+          where.streamerRating = { not: null };
+          orderBy = { streamerRating: 'asc' };
+        }
+        else orderBy = { watchDate: 'asc' };
+
+        const [movies, total] = await prisma.$transaction([
+          prisma.movie.findMany({ where, orderBy, skip, take: limitNum }),
+          prisma.movie.count({ where })
+        ]);
+        
+        // Count totals for progress bar (ignoring some filters like search/month so it's global)
+        const [totalMovies, watchedMovies] = await prisma.$transaction([
+          prisma.movie.count({ where: { userId } }),
+          prisma.movie.count({ where: { userId, watched: true } })
+        ]);
+
+        let uniqueMonths: string[] = [];
+        if (pageNum === 1) {
+          const allDates = await prisma.movie.findMany({
+            where: { userId },
+            select: { watchDate: true }
+          });
+          uniqueMonths = Array.from(new Set(allDates.map(m => m.watchDate ? m.watchDate.toISOString().substring(0, 7) : 'none')));
+        }
+
+        return res.json({
+          data: movies,
+          total,
+          page: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          stats: { total: totalMovies, watched: watchedMovies },
+          uniqueMonths
+        });
+      }
+
       const movies = await prisma.movie.findMany({ where: { userId } });
       return res.json(movies);
     } catch (error: any) {
@@ -322,7 +406,7 @@ export class MovieController {
       const watchedMovies = watchedMoviesList.length;
       const unwatchedMovies = totalMovies - watchedMovies;
 
-      const totalWatchMinutes = watchedMoviesList.reduce((acc, m) => acc + 105, 0); // Estimativa padrão
+      const totalWatchMinutes = watchedMoviesList.reduce((acc, m) => acc + (m.runtime || 105), 0);
       const totalWatchHours = Math.floor(totalWatchMinutes / 60);
       const totalWatchDays = (totalWatchHours / 24).toFixed(1);
 

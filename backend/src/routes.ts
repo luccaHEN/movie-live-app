@@ -62,6 +62,7 @@ routes.get('/movies/tmdb/:id', movieController.getTmdbDetails);
 routes.get('/movies/stats', movieController.stats);
 routes.get('/movies', movieController.index);
 routes.post('/movies', movieController.create);
+routes.put('/movies/reorder', movieController.reorder);
 routes.put('/movies/:id', movieController.update);
 routes.delete('/movies/:id', movieController.delete);
 routes.get('/profile', userController.getProfile);

@@ -147,23 +147,46 @@ const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, so
 export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
   const [savedMovies, setSavedMovies] = useState<any[]>([]);
   const [selectedMovieDetails, setSelectedMovieDetails] = useState<any | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => new Date().toISOString().substring(0, 7));
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'WATCHED' | 'UNWATCHED'>('ALL');
   const [rescuerFilter, setRescuerFilter] = useState<string>('');
   const [sortBy, setSortBy] = useState<'DATE' | 'RATING_DESC' | 'RATING_ASC' | 'ALPHA'>('DATE');
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const moviesPerPage = 35;
+  const [hasMore, setHasMore] = useState(true);
+  const [uniqueMonthKeys, setUniqueMonthKeys] = useState<string[]>([]);
+  const [globalStats, setGlobalStats] = useState({ total: 0, watched: 0 });
+  
+  const loaderRef = React.useRef<HTMLDivElement>(null);
+  
   const [draggedMovieId, setDraggedMovieId] = useState<number | null>(null);
   const [dragOverMovieId, setDragOverMovieId] = useState<number | null>(null);
 
-  const fetchSavedMovies = async () => {
-    setIsLoading(true);
+  const fetchSavedMovies = async (pageNum: number) => {
+    if (pageNum === 1) setIsLoading(true);
     try {
       const response = await api.get('/movies', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        params: { page: pageNum, limit: 35, status: statusFilter, sortBy, month: selectedMonth, search: rescuerFilter }
       });
-      setSavedMovies(response.data);
+      if (pageNum === 1) {
+        setSavedMovies(response.data.data);
+        if (response.data.uniqueMonths) {
+          let months = response.data.uniqueMonths;
+          if (selectedMonth !== 'ALL' && !months.includes(selectedMonth)) {
+            months.push(selectedMonth);
+          }
+          setUniqueMonthKeys(months.sort((a: any, b: any) => a === 'none' ? 1 : b === 'none' ? -1 : a.localeCompare(b)));
+        }
+      } else {
+        setSavedMovies(prev => {
+          const existingIds = new Set(prev.map(m => m.id));
+          const newMovies = response.data.data.filter((m: any) => !existingIds.has(m.id));
+          return [...prev, ...newMovies];
+        });
+      }
+      setHasMore(pageNum < response.data.totalPages);
+      setGlobalStats(response.data.stats || { total: 0, watched: 0 });
     } catch (error) {
       toast.error("Erro ao carregar seus filmes.");
     } finally {
@@ -171,15 +194,27 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
     }
   };
 
-  // Dispara a busca sozinho assim que o componente aparecer na tela
   useEffect(() => {
-    fetchSavedMovies();
-  }, []);
-
-  // Volta para a primeira página sempre que os filtros mudarem
-  useEffect(() => {
-    setCurrentPage(1);
+    const timer = setTimeout(() => {
+      setCurrentPage(1);
+      fetchSavedMovies(1);
+    }, 500);
+    return () => clearTimeout(timer);
   }, [statusFilter, rescuerFilter, sortBy, selectedMonth]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !isLoading && hasMore) {
+        setCurrentPage(prev => {
+          const next = prev + 1;
+          fetchSavedMovies(next);
+          return next;
+        });
+      }
+    }, { threshold: 1.0 });
+    if (loaderRef.current) observer.observe(loaderRef.current);
+    return () => observer.disconnect();
+  }, [isLoading, hasMore]);
 
   const handleResetFilters = () => {
     setRescuerFilter('');
@@ -245,12 +280,6 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
     }
   };
 
-  // Extrai as chaves únicas de Ano e Mês (ex: "2024-04")
-  const uniqueMonthKeys = Array.from(
-    new Set(savedMovies.map((m: any) => m.watchDate ? String(m.watchDate).substring(0, 7) : 'none'))
-  ).sort((a: any, b: any) => a === 'none' ? 1 : b === 'none' ? -1 : a.localeCompare(b));
-
-  // Transforma a chave "2024-04" no texto amigável "Abril 2024"
   const getMonthLabel = (key: string) => {
     if (key === 'none') return 'Sem data';
     const [year, month] = key.split('-');
@@ -259,49 +288,6 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
     return `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
   };
 
-  // Filtra e ordena os filmes pela data de agendamento (mais antigos primeiro)
-  const filteredMovies = savedMovies
-    .filter((m: any) => selectedMonth === 'ALL' || (m.watchDate ? String(m.watchDate).substring(0, 7) : 'none') === selectedMonth)
-    .filter((m: any) => {
-      if (statusFilter === 'WATCHED') return m.watched === true;
-      if (statusFilter === 'UNWATCHED') return m.watched === false;
-      return true; // Se for 'ALL', retorna todos
-    })
-    .filter((m: any) => {
-      if (rescuerFilter.trim() === '') return true;
-      const searchTerm = rescuerFilter.toLowerCase();
-      const requestedBy = (m.requestedBy || 'ninguém').toLowerCase();
-      const title = (m.title || '').toLowerCase();
-      return requestedBy.includes(searchTerm) || title.includes(searchTerm);
-    })
-    .filter((m: any) => {
-      // Se estiver ordenando por nota, remove os filmes que não têm nenhuma avaliação
-      if (sortBy === 'RATING_DESC' || sortBy === 'RATING_ASC') {
-        return m.streamerRating != null;
-      }
-      return true;
-    })
-    .sort((a: any, b: any) => {
-      if (sortBy === 'ALPHA') {
-        return (a.title || '').localeCompare(b.title || '');
-      }
-      if (sortBy === 'RATING_DESC') {
-        return (b.streamerRating ?? 0) - (a.streamerRating ?? 0);
-      }
-      if (sortBy === 'RATING_ASC') {
-        return (a.streamerRating ?? 0) - (b.streamerRating ?? 0);
-      }
-      // Se os dois não têm data, mantém a ordem original
-      if (!a.watchDate && !b.watchDate) return 0;
-      // Se 'a' não tem data, joga para o final da lista
-      if (!a.watchDate) return 1;
-      // Se 'b' não tem data, joga para o final da lista
-      if (!b.watchDate) return -1;
-      // Ordena cronologicamente (ex: 10/04 antes de 11/04)
-      return new Date(a.watchDate).getTime() - new Date(b.watchDate).getTime();
-    });
-
-  // Lógica de Drag & Drop para reordenar filmes no mesmo dia
   const handleDrop = async (e: React.DragEvent, targetId: number) => {
     e.preventDefault();
     const draggedId = parseInt(e.dataTransfer.getData('text/plain'), 10);
@@ -320,15 +306,15 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
       ? new Date(targetMovie.watchDate).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0];
 
-    const moviesOnSameDay = filteredMovies.filter((m: any) => {
+    const moviesOnSameDay = savedMovies.filter((m: any) => {
       const mDate = m.watchDate ? new Date(m.watchDate).toISOString().split('T')[0] : null;
       return mDate === baseDateString;
     });
 
     const otherMovies = moviesOnSameDay.filter((m: any) => m.id !== draggedId);
     const targetIndex = otherMovies.findIndex((m: any) => m.id === targetId);
-    const originalDraggedIndex = filteredMovies.findIndex((m: any) => m.id === draggedId);
-    const originalTargetIndex = filteredMovies.findIndex((m: any) => m.id === targetId);
+    const originalDraggedIndex = savedMovies.findIndex((m: any) => m.id === draggedId);
+    const originalTargetIndex = savedMovies.findIndex((m: any) => m.id === targetId);
 
     let insertIndex = targetIndex;
     if (targetIndex !== -1) {
@@ -358,28 +344,19 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
     setDraggedMovieId(null);
     setDragOverMovieId(null);
 
-    for (const update of changedMovies) {
+    if (changedMovies.length > 0) {
       try {
-        await api.put(`/movies/${update.id}`, { watchDate: update.watchDate }, {
+        await api.put('/movies/reorder', { updates: changedMovies }, {
           headers: { Authorization: `Bearer ${token}` }
         });
       } catch (error) {
-        console.error('Erro ao reordenar filme', error);
+        console.error('Erro ao reordenar filmes', error);
+        toast.error('Erro ao salvar a nova ordem dos filmes.');
       }
     }
   };
 
-  // Lógica de Paginação
-  const indexOfLastMovie = currentPage * moviesPerPage;
-  const indexOfFirstMovie = indexOfLastMovie - moviesPerPage;
-  const currentMovies = filteredMovies.slice(indexOfFirstMovie, indexOfLastMovie);
-  const totalPages = Math.ceil(filteredMovies.length / moviesPerPage);
-
-  // Cálculos para o Resumo
-  const totalFiltered = filteredMovies.length;
-  const watchedFiltered = filteredMovies.filter((m: any) => m.watched).length;
-  const unwatchedFiltered = totalFiltered - watchedFiltered;
-  const progressPercentage = totalFiltered > 0 ? Math.round((watchedFiltered / totalFiltered) * 100) : 0;
+  const progressPercentage = globalStats.total > 0 ? Math.round((globalStats.watched / globalStats.total) * 100) : 0;
 
   return (
     <div className="saved-movies-container" style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', width: '100%', gap: '30px' }}>
@@ -521,15 +498,15 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
           <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem', color: 'var(--primary)', textAlign: 'center' }}>📊 Resumo da Lista</h3>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
             <span style={{ color: '#ccc' }}>Total Listado:</span>
-            <span style={{ fontWeight: 'bold' }}>{totalFiltered}</span>
+            <span style={{ fontWeight: 'bold' }}>{globalStats.total}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
             <span style={{ color: '#ccc' }}>Já Assistidos:</span>
-            <span style={{ fontWeight: 'bold', color: '#10b981' }}>{watchedFiltered}</span>
+            <span style={{ fontWeight: 'bold', color: '#10b981' }}>{globalStats.watched}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
             <span style={{ color: '#ccc' }}>Para Assistir:</span>
-            <span style={{ fontWeight: 'bold', color: '#f59e0b' }}>{unwatchedFiltered}</span>
+            <span style={{ fontWeight: 'bold', color: '#f59e0b' }}>{globalStats.total - globalStats.watched}</span>
           </div>
       <div style={{ marginTop: '10px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
@@ -562,39 +539,22 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
         </h2>
 
       <div className="movies-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', width: '100%', maxWidth: '100%', gap: '20px', marginTop: '0' }}>
-      {isLoading ? (
-        Array.from({ length: 20 }).map((_, i) => (
-          <div key={`skeleton-${i}`} className="skeleton-card" style={{ width: '100%', height: '400px' }}></div>
-        ))
-      ) : currentMovies.length === 0 ? <p style={{ gridColumn: '1 / -1', textAlign: 'center' }}>Nenhum filme encontrado para este filtro.</p> : currentMovies.map((movie: any) => (
+      {savedMovies.length === 0 && !isLoading ? <p style={{ gridColumn: '1 / -1', textAlign: 'center' }}>Nenhum filme encontrado para este filtro.</p> : savedMovies.map((movie: any) => (
         <MovieCardItem 
           key={movie.id} movie={movie} onUpdate={handleUpdateMovie} onDelete={handleDeleteMovie}
           onShowDetails={handleShowDetails} sortBy={sortBy} draggedMovieId={draggedMovieId} dragOverMovieId={dragOverMovieId}
           setDraggedMovieId={setDraggedMovieId} setDragOverMovieId={setDragOverMovieId} onDrop={handleDrop} streamerMode={streamerMode}
         />
       ))}
+      
+      {isLoading && Array.from({ length: 15 }).map((_, i) => (
+        <div key={`skeleton-${i}`} className="skeleton-card" style={{ width: '100%', height: '400px' }}></div>
+      ))}
       </div>
 
-    {/* Controles de Paginação */}
-    {totalPages > 1 && (
-      <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginTop: '30px', alignItems: 'center', alignSelf: 'center' }}>
-        <button 
-          className="btn-secondary" 
-          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} 
-          disabled={currentPage === 1}
-        >
-          Anterior
-        </button>
-        <span style={{ fontWeight: 'bold' }}>Página {currentPage} de {totalPages}</span>
-        <button 
-          className="btn-secondary" 
-          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} 
-          disabled={currentPage === totalPages}
-        >
-          Próxima
-        </button>
-      </div>
-    )}
+      {!isLoading && hasMore && savedMovies.length > 0 && (
+        <div ref={loaderRef} style={{ height: '20px', width: '100%', marginTop: '20px' }}></div>
+      )}
       </div>
 
       {/* Modal Flutuante com os Detalhes do Filme */}
