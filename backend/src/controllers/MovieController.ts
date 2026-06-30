@@ -39,10 +39,10 @@ async function sendPushToFollowers(streamerName: string, title: string, message:
 
 export class MovieController {
   async search(req: Request, res: Response): Promise<Response | any> {
-    const { query, page = 1 } = req.query;
+    const { query, page = 1, genre } = req.query;
 
-    if (!query) {
-      return res.status(400).json({ error: 'O parâmetro query é obrigatório' });
+    if (!query && !genre) {
+      return res.status(400).json({ error: 'O parâmetro query ou genre é obrigatório' });
     }
 
     if (!process.env.TMDB_TOKEN) {
@@ -51,18 +51,95 @@ export class MovieController {
     }
 
     try {
-      const response = await axios.get(`https://api.themoviedb.org/3/search/movie`, {
-        params: {
-          query: query as string,
-          language: 'pt-BR',
-          page
-        },
-        headers: {
-          Authorization: `Bearer ${process.env.TMDB_TOKEN}`
-        }
-      });
+      if (!query && genre) {
+        // Se tem só gênero, usamos o discover
+        const response = await axios.get(`https://api.themoviedb.org/3/discover/movie`, {
+          params: {
+            with_genres: genre,
+            language: 'pt-BR',
+            page,
+            sort_by: 'popularity.desc'
+          },
+          headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
+        });
+        return res.json(response.data.results);
+      }
 
-      return res.json(response.data.results);
+      // Busca "multi" original em Português
+      const searchPromises = [
+        axios.get(`https://api.themoviedb.org/3/search/multi`, {
+          params: { query: query as string, language: 'pt-BR', page },
+          headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
+        })
+      ];
+
+      // Busca Bilíngue: Faz a mesma busca forçando o idioma original/inglês
+      // Isso ajuda a encontrar filmes pelo nome original quando a busca em pt-BR falha
+      searchPromises.push(
+        axios.get(`https://api.themoviedb.org/3/search/multi`, {
+          params: { query: query as string, language: 'en-US', page },
+          headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
+        })
+      );
+
+      // Remove palavras comuns (stop words) que atrapalham a busca do TMDB
+      const stopWords = ['o', 'a', 'os', 'as', 'um', 'uma', 'se', 'que', 'de', 'do', 'da', 'no', 'na', 'em', 'filme', 'assistir'];
+      const cleanedQuery = (query as string)
+        .toLowerCase()
+        .replace(/[,.-]/g, ' ')
+        .split(/\s+/)
+        .filter(w => !stopWords.includes(w))
+        .join(' ')
+        .trim();
+
+      // Se a string limpa for diferente, fazemos buscas extras em paralelo
+      if (cleanedQuery && cleanedQuery !== (query as string).toLowerCase().trim()) {
+        searchPromises.push(
+          axios.get(`https://api.themoviedb.org/3/search/multi`, {
+            params: { query: cleanedQuery, language: 'pt-BR', page },
+            headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
+          })
+        );
+        searchPromises.push(
+          axios.get(`https://api.themoviedb.org/3/search/multi`, {
+            params: { query: cleanedQuery, language: 'en-US', page },
+            headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
+          })
+        );
+      }
+
+      const responses = await Promise.all(searchPromises);
+
+      let results: any[] = [];
+      // Juntamos os resultados de todas as buscas (a original vem primeiro)
+      for (const response of responses) {
+        for (const item of response.data.results) {
+          if (item.media_type === 'movie') {
+            results.push(item);
+          } else if (item.media_type === 'person' && item.known_for) {
+            // Se encontrou uma pessoa, adiciona os filmes pelos quais ela é conhecida
+            results.push(...item.known_for.filter((k: any) => k.media_type === 'movie'));
+          }
+        }
+      }
+
+      // Remove duplicatas mantendo a ordem de relevância (a primeira aparição é a que fica)
+      const uniqueResults = [];
+      const ids = new Set();
+      for (const movie of results) {
+        if (!ids.has(movie.id)) {
+          ids.add(movie.id);
+          uniqueResults.push(movie);
+        }
+      }
+
+      // Filtra por gênero se tiver
+      let finalResults = uniqueResults;
+      if (genre) {
+        finalResults = finalResults.filter(m => m.genre_ids && m.genre_ids.includes(parseInt(genre as string)));
+      }
+
+      return res.json(finalResults);
     } catch (error: any) {
       console.error('Detalhes do Erro TMDB:', error.response?.data || error.message);
       return res.status(500).json({ error: 'Erro ao buscar filmes no TMDB', details: error.response?.data });
@@ -70,14 +147,23 @@ export class MovieController {
   }
 
   async popular(req: Request, res: Response): Promise<Response | any> {
-    const { page = 1 } = req.query;
+    const { page = 1, genre } = req.query;
     if (!process.env.TMDB_TOKEN) {
       return res.status(500).json({ error: 'Erro interno de configuração do servidor' });
     }
 
     try {
-      const response = await axios.get(`https://api.themoviedb.org/3/movie/popular`, {
-        params: { language: 'pt-BR', page },
+      let url = `https://api.themoviedb.org/3/movie/popular`;
+      const params: any = { language: 'pt-BR', page };
+
+      if (genre) {
+        url = `https://api.themoviedb.org/3/discover/movie`;
+        params.with_genres = genre;
+        params.sort_by = 'popularity.desc';
+      }
+
+      const response = await axios.get(url, {
+        params,
         headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
       });
       return res.json(response.data.results);

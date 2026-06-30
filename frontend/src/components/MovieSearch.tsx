@@ -32,11 +32,12 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
   const loaderRef = useRef<HTMLDivElement>(null);
   const currentRequestRef = useRef(0); // Referência para controlar a condição de corrida
 
-  const fetchPopular = async (pageNum = 1) => {
+  const fetchPopular = async (pageNum = 1, genreStr = selectedGenre) => {
     const requestId = ++currentRequestRef.current;
     try {
       setIsLoading(true);
-      const response = await api.get(`/movies/popular?page=${pageNum}`, {
+      const genreQuery = genreStr ? `&genre=${genreStr}` : '';
+      const response = await api.get(`/movies/popular?page=${pageNum}${genreQuery}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -62,7 +63,8 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
   };
 
   useEffect(() => {
-    fetchPopular(1);
+    // Initial fetch, we don't have genre yet
+    fetchPopular(1, '');
   }, [token]);
 
   // Detecta a rolagem para mostrar o botão de Voltar ao Topo
@@ -97,28 +99,35 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
 
   // Efeito de Debounce para buscar enquanto o usuário digita
   useEffect(() => {
+    // Se for o render inicial, não fazemos a busca dupla pois o outro useEffect já cuidou,
+    // mas o debounce cobre isso de qualquer forma substituindo.
     const delayDebounceFn = setTimeout(() => {
       setPage(1); // Reinicia a paginação na nova busca
       setHasMore(true);
-      if (searchQuery.trim()) {
-        performSearch(searchQuery, 1);
+      if (searchQuery.trim() || selectedGenre) {
+        if (searchQuery.trim()) {
+          performSearch(searchQuery, 1, selectedGenre);
+        } else {
+          // Se tiver só gênero, buscamos nos populares (que agora no backend cai no discover)
+          fetchPopular(1, selectedGenre);
+        }
         scrollToTop();
       } else {
-        fetchPopular(1);
+        fetchPopular(1, '');
         scrollToTop();
       }
     }, 600); // 600ms de atraso
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, token]);
+  }, [searchQuery, selectedGenre, token]);
 
   // Efeito para carregar mais páginas quando o 'page' mudar (Rolagem Infinita)
   useEffect(() => {
     if (page === 1) return; // A página 1 já é tratada pelo debounce ou load inicial
     if (searchQuery.trim()) {
-      performSearch(searchQuery, page);
+      performSearch(searchQuery, page, selectedGenre);
     } else {
-      fetchPopular(page);
+      fetchPopular(page, selectedGenre);
     }
   }, [page]);
 
@@ -133,11 +142,12 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
     return () => observer.disconnect();
   }, [isLoading, hasMore]);
 
-  const performSearch = async (query: string, pageNum = 1) => {
+  const performSearch = async (query: string, pageNum = 1, genreStr = '') => {
     const requestId = ++currentRequestRef.current;
     setIsLoading(true);
     try {
-      const response = await api.get(`/movies/search?query=${query}&page=${pageNum}`, {
+      const genreQuery = genreStr ? `&genre=${genreStr}` : '';
+      const response = await api.get(`/movies/search?query=${query}&page=${pageNum}${genreQuery}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -162,7 +172,10 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     // O debounce já fará a busca, mas deixamos aqui caso o usuário aperte 'Enter' rápido demais
-    if (searchQuery.trim()) performSearch(searchQuery, 1);
+    if (searchQuery.trim() || selectedGenre) {
+      if (searchQuery.trim()) performSearch(searchQuery, 1, selectedGenre);
+      else fetchPopular(1, selectedGenre);
+    }
   };
 
   const handleClearSearch = () => {
@@ -170,7 +183,7 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
     setSelectedGenre('');
     setPage(1);
     setHasMore(true);
-    fetchPopular(1); // Volta a mostrar os filmes populares
+    fetchPopular(1, ''); // Volta a mostrar os filmes populares
     scrollToTop();
   };
 
@@ -250,7 +263,7 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
     }
   };
 
-  const displayedMovies = selectedGenre ? movies.filter(m => m.genre_ids && m.genre_ids.includes(parseInt(selectedGenre))) : movies;
+  const displayedMovies = movies; // A filtragem de gênero agora é feita no backend!
 
   return (
     <>
@@ -352,7 +365,7 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
         <input 
           type="text" 
           className="premium-search-input"
-          placeholder="Ex: Batman, O Senhor dos Anéis, Interestelar..." 
+          placeholder="Ex: Di Caprio, Batman, Nolan..." 
           value={searchQuery} 
           onChange={e => setSearchQuery(e.target.value)} 
         />
