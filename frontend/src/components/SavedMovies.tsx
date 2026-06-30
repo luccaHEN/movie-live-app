@@ -263,7 +263,7 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Erro ao atualizar o filme.');
       // Se der erro no banco de dados, busca os dados reais novamente para reverter a tela
-      fetchSavedMovies();
+      fetchSavedMovies(currentPage);
     }
   };
 
