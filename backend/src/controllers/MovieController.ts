@@ -278,7 +278,7 @@ export class MovieController {
 
   async index(req: Request, res: Response): Promise<Response | any> {
     const userId = (req as any).userId;
-    const { page, limit, status, sortBy, month, search } = req.query;
+    const { page, limit, status, sortBy, month, search, genre } = req.query;
 
     try {
       if (page) {
@@ -310,6 +310,21 @@ export class MovieController {
           ];
         }
 
+        if (genre && genre !== 'ALL') {
+          const genresToMatch = (genre as string).split(',').map(g => g.trim()).filter(g => g);
+          if (genresToMatch.length > 0) {
+            const genreConditions = genresToMatch.map(g => ({
+              genre: { contains: g, mode: 'insensitive' }
+            }));
+            
+            if (where.AND) {
+              where.AND.push(...genreConditions);
+            } else {
+              where.AND = genreConditions;
+            }
+          }
+        }
+
         let orderBy: any = {};
         if (sortBy === 'ALPHA') orderBy = { title: 'asc' };
         else if (sortBy === 'RATING_DESC') {
@@ -322,33 +337,72 @@ export class MovieController {
         }
         else orderBy = { watchDate: 'asc' };
 
+        // Select only needed fields to reduce data transfer
+        const movieSelect = {
+          id: true,
+          title: true,
+          tmdbId: true,
+          poster: true,
+          genre: true,
+          runtime: true,
+          userId: true,
+          watched: true,
+          watchDate: true,
+          streamerRating: true,
+          chatRating: true,
+          requestedBy: true,
+          isChampion: true,
+          isTrash: true,
+        };
+
+        // Run all queries in parallel for page 1
+        if (pageNum === 1) {
+          const [movies, total, totalMovies, watchedMovies, allFilterData] = await prisma.$transaction([
+            prisma.movie.findMany({ where, orderBy, skip, take: limitNum, select: movieSelect }),
+            prisma.movie.count({ where }),
+            prisma.movie.count({ where: { userId } }),
+            prisma.movie.count({ where: { userId, watched: true } }),
+            prisma.movie.findMany({
+              where: { userId },
+              select: { watchDate: true, genre: true }
+            })
+          ]);
+
+          const uniqueMonths = Array.from(new Set(allFilterData.map(m => m.watchDate ? m.watchDate.toISOString().substring(0, 7) : 'none')));
+          
+          const allGenresSet = new Set<string>();
+          allFilterData.forEach(m => {
+            if (m.genre) {
+              m.genre.split(',').forEach(g => {
+                const trimmed = g.trim();
+                if (trimmed) allGenresSet.add(trimmed);
+              });
+            }
+          });
+          const uniqueGenres = Array.from(allGenresSet).sort((a, b) => a.localeCompare(b));
+
+          return res.json({
+            data: movies,
+            total,
+            page: pageNum,
+            totalPages: Math.ceil(total / limitNum),
+            stats: { total: totalMovies, watched: watchedMovies },
+            uniqueMonths,
+            uniqueGenres
+          });
+        }
+
+        // For subsequent pages, only fetch movies + count (no stats/filters)
         const [movies, total] = await prisma.$transaction([
-          prisma.movie.findMany({ where, orderBy, skip, take: limitNum }),
+          prisma.movie.findMany({ where, orderBy, skip, take: limitNum, select: movieSelect }),
           prisma.movie.count({ where })
         ]);
-        
-        // Count totals for progress bar (ignoring some filters like search/month so it's global)
-        const [totalMovies, watchedMovies] = await prisma.$transaction([
-          prisma.movie.count({ where: { userId } }),
-          prisma.movie.count({ where: { userId, watched: true } })
-        ]);
-
-        let uniqueMonths: string[] = [];
-        if (pageNum === 1) {
-          const allDates = await prisma.movie.findMany({
-            where: { userId },
-            select: { watchDate: true }
-          });
-          uniqueMonths = Array.from(new Set(allDates.map(m => m.watchDate ? m.watchDate.toISOString().substring(0, 7) : 'none')));
-        }
 
         return res.json({
           data: movies,
           total,
           page: pageNum,
           totalPages: Math.ceil(total / limitNum),
-          stats: { total: totalMovies, watched: watchedMovies },
-          uniqueMonths
         });
       }
 
