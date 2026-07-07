@@ -3,6 +3,7 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import MovieDetailsModal from './MovieDetailsModal';
 import Modal from './Modal';
+import CustomDatePicker from './CustomDatePicker';
 import { Search } from 'lucide-react';
 
 interface SavedMoviesProps {
@@ -11,7 +12,7 @@ interface SavedMoviesProps {
 }
 
 // COMPONENTE ISOLADO: Garante que os filmes não re-renderizem ao digitar as notas!
-const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, sortBy, draggedMovieId, dragOverMovieId, setDraggedMovieId, setDragOverMovieId, onDrop, streamerMode }: any) => {
+const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, sortBy, draggedMovieId, dragOverMovieId, setDraggedMovieId, setDragOverMovieId, onDrop, streamerMode, token }: any) => {
   const [requestedBy, setRequestedBy] = useState(movie.requestedBy || '');
   const [streamerRating, setStreamerRating] = useState(movie.streamerRating ?? '');
   const [chatRating, setChatRating] = useState(movie.chatRating ?? '');
@@ -132,7 +133,11 @@ const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, so
           )}
           <label className="input-label" style={{ margin: 0, fontSize: '0.9rem' }}>
             {streamerMode ? 'Agendado para:' : 'Data que assistiu:'}
-            <input type="date" value={watchDate} onChange={(e) => setWatchDate(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-color)', color: 'var(--text-color)', marginTop: '5px', outline: 'none' }} />
+            <CustomDatePicker 
+              value={watchDate} 
+              onChange={(val) => setWatchDate(val)} 
+              token={token} 
+            />
           </label>
           <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
             <button onClick={handleSaveEdit} className="btn-primary" style={{ flex: 1, margin: 0 }}>Salvar</button>
@@ -271,6 +276,7 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
                 await api.delete(`/movies/${id}`, { headers: { Authorization: `Bearer ${token}` } });
               setSavedMovies(prev => prev.filter((movie: any) => movie.id !== id));
                 toast.success('Filme removido!');
+                window.dispatchEvent(new Event('moviesUpdated'));
               } catch (error: any) {
                 toast.error(error.response?.data?.error || 'Erro ao deletar o filme.');
               }
@@ -296,6 +302,9 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
       await api.put(`/movies/${id}`, updates, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (updates.watchDate !== undefined || updates.watched !== undefined) {
+        window.dispatchEvent(new Event('moviesUpdated'));
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Erro ao atualizar o filme.');
       fetchSavedMovies(currentPage);
@@ -700,6 +709,7 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
           key={movie.id} movie={movie} onUpdate={handleUpdateMovie} onDelete={handleDeleteMovie}
           onShowDetails={handleShowDetails} sortBy={sortBy} draggedMovieId={draggedMovieId} dragOverMovieId={dragOverMovieId}
           setDraggedMovieId={setDraggedMovieId} setDragOverMovieId={setDragOverMovieId} onDrop={handleDrop} streamerMode={streamerMode}
+          token={token}
         />
       ))}
       

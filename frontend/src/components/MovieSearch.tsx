@@ -3,6 +3,7 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import MovieDetailsModal from './MovieDetailsModal';
 import Modal from './Modal';
+import CustomDatePicker from './CustomDatePicker';
 import { ArrowUp, Star, Search } from 'lucide-react';
 
 const TMDB_GENRES: Record<number, string> = {
@@ -422,12 +423,11 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
                   </label>
                   <label className="input-label" style={{ opacity: savedMoviesMap[movie.id] ? 0.5 : 1 }}>
                     Agendar para:
-                    <input 
-                      type="date" 
+                    <CustomDatePicker 
                       value={drafts[movie.id]?.watchDate || ''} 
-                      onChange={(e) => setDrafts({ ...drafts, [movie.id]: { ...drafts[movie.id], watchDate: e.target.value } })}
+                      onChange={(val) => setDrafts({ ...drafts, [movie.id]: { ...drafts[movie.id], watchDate: val } })}
+                      token={token}
                       disabled={!!savedMoviesMap[movie.id]}
-                      style={{ cursor: savedMoviesMap[movie.id] ? 'not-allowed' : 'text' }}
                     />
                   </label>
                 </>

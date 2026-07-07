@@ -4,6 +4,7 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 import { createPortal } from 'react-dom';
+import CustomDatePicker from './CustomDatePicker';
 
 const tickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
 const winSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3');
@@ -158,6 +159,7 @@ export default function RouletteModal({ isOpen, onClose, token, streamerMode, fe
       toast.success(`Filme "${drawnMovie.title}" salvo!`);
       onClose();
       fetchMovies(true);
+      window.dispatchEvent(new Event('moviesUpdated'));
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Erro ao salvar.');
     }
@@ -274,7 +276,13 @@ export default function RouletteModal({ isOpen, onClose, token, streamerMode, fe
                 {streamerMode && (
                   <div style={{ width: '100%', textAlign: 'left', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <p style={{ margin: 0, color: '#ec4899', fontWeight: 'bold' }}>👑 Resgatado por: Chat</p>
-                    <label className="input-label" style={{ margin: 0 }}>Agendar para:<input type="date" value={rouletteWatchDate} onChange={(e) => setRouletteWatchDate(e.target.value)} style={{ marginTop: '5px' }} /></label>
+                    <label className="input-label" style={{ margin: 0 }}>Agendar para:
+                      <CustomDatePicker 
+                        value={rouletteWatchDate} 
+                        onChange={(val) => setRouletteWatchDate(val)} 
+                        token={token} 
+                      />
+                    </label>
                   </div>
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', marginTop: '10px' }}>

@@ -724,3 +724,281 @@ html {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(59, 130, 246, 0.8);
 }
+
+/* ========================================
+   CustomDatePicker — Trigger
+   ======================================== */
+.cdp-trigger {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-color);
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  font-size: 0.9rem;
+  user-select: none;
+}
+
+.cdp-trigger:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.cdp-trigger--open {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.cdp-trigger--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.cdp-trigger-icon {
+  color: #666;
+  flex-shrink: 0;
+  transition: color 0.3s;
+}
+
+.cdp-trigger--open .cdp-trigger-icon {
+  color: var(--primary);
+}
+
+.cdp-trigger-value {
+  flex: 1;
+  color: var(--text-color);
+}
+
+.cdp-trigger-placeholder {
+  flex: 1;
+  color: #555;
+}
+
+.cdp-trigger-clear {
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.cdp-trigger-clear:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* ========================================
+   CustomDatePicker — Dropdown (Portal)
+   ======================================== */
+.cdp-dropdown {
+  position: fixed;
+  z-index: 10000;
+  animation: cdpSlideIn 0.2s ease-out;
+}
+
+@keyframes cdpSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================================
+   CustomDatePicker — Calendar Override
+   ======================================== */
+.cdp-calendar.react-calendar {
+  background: #141418 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  color: #fff !important;
+  width: 310px !important;
+  font-family: 'Outfit', sans-serif !important;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 0 30px rgba(59, 130, 246, 0.08) !important;
+  padding: 12px !important;
+  overflow: hidden;
+}
+
+/* Navigation (month/year header) */
+.cdp-calendar .react-calendar__navigation {
+  margin-bottom: 8px !important;
+  gap: 4px;
+}
+
+.cdp-calendar .react-calendar__navigation button {
+  color: #fff !important;
+  font-family: 'Outfit', sans-serif !important;
+  font-weight: 600;
+  font-size: 1rem;
+  background: transparent !important;
+  border-radius: 8px !important;
+  min-width: 36px !important;
+  padding: 6px !important;
+  transition: background 0.2s, color 0.2s;
+}
+
+.cdp-calendar .react-calendar__navigation button:enabled:hover,
+.cdp-calendar .react-calendar__navigation button:enabled:focus {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #60a5fa !important;
+}
+
+.cdp-calendar .react-calendar__navigation button:disabled {
+  color: #444 !important;
+  background: transparent !important;
+}
+
+/* Weekday headers */
+.cdp-calendar .react-calendar__month-view__weekdays {
+  margin-bottom: 4px;
+}
+
+.cdp-calendar .react-calendar__month-view__weekdays__weekday {
+  padding: 6px 0 !important;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cdp-calendar .react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none !important;
+  color: #666 !important;
+  font-weight: 500;
+}
+
+/* Day tiles */
+.cdp-calendar .react-calendar__tile {
+  color: #e0e0e0 !important;
+  padding: 8px 4px 12px 4px !important;
+  border-radius: 8px !important;
+  font-size: 0.85rem !important;
+  font-weight: 400;
+  transition: all 0.15s ease !important;
+  position: relative !important;
+  background: transparent !important;
+  line-height: 1.2 !important;
+  text-align: center !important;
+}
+
+.cdp-calendar .react-calendar__tile:enabled:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
+}
+
+.cdp-calendar .react-calendar__tile:enabled:focus {
+  background: rgba(59, 130, 246, 0.12) !important;
+}
+
+/* Today */
+.cdp-calendar .react-calendar__tile--now {
+  background: rgba(59, 130, 246, 0.12) !important;
+  color: #60a5fa !important;
+  font-weight: 600;
+}
+
+.cdp-calendar .react-calendar__tile--now:enabled:hover {
+  background: rgba(59, 130, 246, 0.22) !important;
+}
+
+/* Active (selected) */
+.cdp-calendar .react-calendar__tile--active {
+  background: var(--primary) !important;
+  color: #fff !important;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+.cdp-calendar .react-calendar__tile--active:enabled:hover,
+.cdp-calendar .react-calendar__tile--active:enabled:focus {
+  background: var(--primary-hover) !important;
+}
+
+/* Neighboring month tiles */
+.cdp-calendar .react-calendar__month-view__days__day--neighboringMonth {
+  color: #3a3a3a !important;
+}
+
+/* Neighboring month: hide dots */
+.cdp-calendar .react-calendar__month-view__days__day--neighboringMonth .cdp-dot {
+  opacity: 0.15;
+}
+
+/* Weekend */
+.cdp-calendar .react-calendar__month-view__days__day--weekend {
+  color: #e0e0e0 !important;
+}
+
+/* ========================================
+   Dot indicators (real elements via tileContent)
+   ======================================== */
+.cdp-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: block;
+  margin: 2px auto 0 auto;
+  flex-shrink: 0;
+}
+
+.cdp-dot--occupied {
+  background: #ef4444;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.6);
+}
+
+.cdp-dot--free {
+  background: #10b981;
+  box-shadow: 0 0 4px rgba(16, 185, 129, 0.5);
+}
+
+/* Active (selected) tile: dot turns white */
+.cdp-calendar .react-calendar__tile--active .cdp-dot {
+  background: rgba(255, 255, 255, 0.8) !important;
+  box-shadow: none !important;
+}
+
+/* ========================================
+   Legend
+   ======================================== */
+.cdp-legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 10px 12px 6px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin-top: 6px;
+}
+
+.cdp-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: #888;
+  letter-spacing: 0.02em;
+}
+
+.cdp-legend-item .cdp-dot {
+  margin: 0;
+}
