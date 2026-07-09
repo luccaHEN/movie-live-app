@@ -7,6 +7,12 @@ import Modal from './Modal';
 export default function PublicList() {
   // Assumindo que a URL seja algo como /lista-publica/:username
   const { username } = useParams();
+  
+  // Função para remover acentos
+  const removeAccents = (str: string) => {
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  };
+
   const [movies, setMovies] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -14,6 +20,7 @@ export default function PublicList() {
   const [selectedRescuer, setSelectedRescuer] = useState<string | null>(null);
   const [view, setView] = useState<'CALENDAR' | 'WATCHED' | 'RATINGS'>('CALENDAR');
   const [calendarMonth, setCalendarMonth] = useState(() => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), 1); });
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | 'none'>('none');
   const [selectedDay, setSelectedDay] = useState<{ date: string, movies: any[] } | null>(null);
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
 
@@ -44,6 +51,47 @@ export default function PublicList() {
     }
   }, [movies, expandedMonths]);
 
+  useEffect(() => {
+    if (searchQuery.trim().length > 0) {
+      const lowerQuery = removeAccents(searchQuery.toLowerCase());
+      
+      // Encontra todos os filmes que correspondem à pesquisa
+      const matches = movies.filter(m => 
+        m.watchDate && 
+        (removeAccents(m.title.toLowerCase()).includes(lowerQuery) || (m.requestedBy && removeAccents(m.requestedBy.toLowerCase()).includes(lowerQuery)))
+      );
+
+      // Pega o filme mais antigo (primeiro em ordem cronológica)
+      const firstMatch = matches.sort((a, b) => new Date(a.watchDate).getTime() - new Date(b.watchDate).getTime())[0];
+
+      if (firstMatch && firstMatch.watchDate) {
+        const [year, month] = String(firstMatch.watchDate).split('-');
+        const targetDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+        
+        setCalendarMonth(prev => {
+          // Só atualiza se o mês for diferente para evitar re-renders desnecessários
+          if (prev.getFullYear() === targetDate.getFullYear() && prev.getMonth() === targetDate.getMonth()) {
+            return prev;
+          }
+          setSlideDirection(targetDate > prev ? 'left' : 'right');
+          return targetDate;
+        });
+      }
+    } else if (searchQuery.length === 0) {
+      // Quando apaga a busca, volta para o mês atual
+      const now = new Date();
+      const targetDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      setCalendarMonth(prev => {
+        if (prev.getFullYear() === targetDate.getFullYear() && prev.getMonth() === targetDate.getMonth()) {
+          return prev;
+        }
+        setSlideDirection(targetDate > prev ? 'left' : 'right');
+        return targetDate;
+      });
+    }
+  }, [searchQuery, movies]);
+
   if (isLoading) {
     return <div style={{ textAlign: 'center', marginTop: '50px' }}>Carregando lista... 🍿</div>;
   }
@@ -52,11 +100,11 @@ export default function PublicList() {
     return <div style={{ textAlign: 'center', marginTop: '50px', color: 'var(--danger)' }}>{error}</div>;
   }
 
-  const lowerCaseQuery = searchQuery.toLowerCase();
+  const lowerCaseQuery = removeAccents(searchQuery.toLowerCase());
 
   const watchedMovies = movies
     .filter(m => m.watched)
-    .filter(m => m.title.toLowerCase().includes(lowerCaseQuery) || (m.requestedBy && m.requestedBy.toLowerCase().includes(lowerCaseQuery)))
+    .filter(m => removeAccents(m.title.toLowerCase()).includes(lowerCaseQuery) || (m.requestedBy && removeAccents(m.requestedBy.toLowerCase()).includes(lowerCaseQuery)))
     .sort((a, b) => new Date(b.watchDate || 0).getTime() - new Date(a.watchDate || 0).getTime());
 
   // Agrupa os filmes assistidos por mês (ex: "2024-05")
@@ -111,7 +159,7 @@ export default function PublicList() {
     }))
     .sort((a, b) => b.totalRescues - a.totalRescues);
 
-  const filteredRescuers = topRescuers.filter(r => r.name.toLowerCase().includes(lowerCaseQuery));
+  const filteredRescuers = topRescuers.filter(r => removeAccents(r.name.toLowerCase()).includes(lowerCaseQuery));
 
   // Filtra e ordena os filmes específicos do usuário clicado
   const rescuerMovies = selectedRescuer
@@ -171,6 +219,18 @@ export default function PublicList() {
           .calendar-movie.upcoming { background-color: rgba(245, 158, 11, 0.15); color: #f59e0b; border-left: 3px solid #f59e0b; }
           .calendar-movie.watched { background-color: rgba(16, 185, 129, 0.1); color: #10b981; border-left: 3px solid #10b981; text-decoration: line-through; opacity: 0.8; }
           .calendar-movie strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          
+          @keyframes slide-in-from-right { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } }
+          @keyframes slide-in-from-left { from { opacity: 0; transform: translateX(-50px); } to { opacity: 1; transform: translateX(0); } }
+          @keyframes slide-in-fade { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+          @keyframes pulse-glow { 0% { box-shadow: 0 0 0px var(--primary); } 50% { box-shadow: 0 0 15px var(--primary); transform: scale(1.03); } 100% { box-shadow: 0 0 0px var(--primary); } }
+          
+          .slide-left { animation: slide-in-from-right 0.35s cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
+          .slide-right { animation: slide-in-from-left 0.35s cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
+          .slide-fade { animation: slide-in-fade 0.35s ease-out forwards; }
+          
+          .calendar-movie.highlight { animation: pulse-glow 1.5s infinite ease-in-out; border-left-color: var(--primary); z-index: 2; position: relative; }
+
           @media (max-width: 768px) {
             .calendar-grid { gap: 4px; }
             .calendar-header { font-size: 0.8rem; margin-bottom: 10px; }
@@ -209,16 +269,16 @@ export default function PublicList() {
           {view === 'CALENDAR' && (
             <div className="public-card" style={{ width: 'calc(100% - 40px)', maxWidth: '1400px', margin: '0 auto 20px auto', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                <button onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))} className="btn-secondary" style={{ width: 'auto', margin: 0, padding: '8px 15px' }}><span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><ArrowLeft size={16} /> Anterior</span></button>
+                <button onClick={() => { setSlideDirection('right'); setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)); }} className="btn-secondary" style={{ width: 'auto', margin: 0, padding: '8px 15px' }}><span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><ArrowLeft size={16} /> Anterior</span></button>
                 <h2 style={{ textTransform: 'capitalize', margin: 0, color: 'var(--primary)', textAlign: 'center', flex: 1 }}>
                   {calendarMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
                 </h2>
-                <button onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))} className="btn-secondary" style={{ width: 'auto', margin: 0, padding: '8px 15px' }}><span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>Próximo <ArrowRight size={16} /></span></button>
+                <button onClick={() => { setSlideDirection('left'); setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)); }} className="btn-secondary" style={{ width: 'auto', margin: 0, padding: '8px 15px' }}><span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>Próximo <ArrowRight size={16} /></span></button>
               </div>
               <div className="calendar-header">
                 <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
               </div>
-              <div className="calendar-grid" style={{ flex: 1, minHeight: 0 }}>
+              <div key={calendarMonth.getTime()} className={`calendar-grid ${slideDirection === 'left' ? 'slide-left' : slideDirection === 'right' ? 'slide-right' : 'slide-fade'}`} style={{ flex: 1, minHeight: 0 }}>
                 {Array.from({ length: firstDay }).map((_, i) => (
                   <div key={`empty-${i}`} className="calendar-cell empty" />
                 ))}
@@ -226,7 +286,7 @@ export default function PublicList() {
                   const day = i + 1;
                   const isToday = day === todayDate && month === todayMonth && year === todayYear;
                   const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const dayMovies = movies.filter(m => m.watchDate && String(m.watchDate).startsWith(dateString) && (m.title.toLowerCase().includes(lowerCaseQuery) || (m.requestedBy && m.requestedBy.toLowerCase().includes(lowerCaseQuery))));
+                  const dayMovies = movies.filter(m => m.watchDate && String(m.watchDate).startsWith(dateString) && (removeAccents(m.title.toLowerCase()).includes(lowerCaseQuery) || (m.requestedBy && removeAccents(m.requestedBy.toLowerCase()).includes(lowerCaseQuery))));
 
                   return (
                     <div 
@@ -247,7 +307,7 @@ export default function PublicList() {
                         {dayMovies.map(m => (
                           <div 
                             key={m.id} 
-                            className={`calendar-movie ${m.watched ? 'watched' : 'upcoming'}`} 
+                            className={`calendar-movie ${m.watched ? 'watched' : 'upcoming'} ${searchQuery.trim().length > 0 ? 'highlight' : ''}`} 
                             title={`${m.title}${m.requestedBy ? ` - ${m.requestedBy}` : ''}`}
                           >
                             <strong>{m.title}</strong>
