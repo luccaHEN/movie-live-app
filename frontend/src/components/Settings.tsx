@@ -13,12 +13,14 @@ interface SettingsProps {
 export default function Settings({ token, user, setUser, streamerMode, setStreamerMode }: SettingsProps) {
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState('');
+  const [twitchChannel, setTwitchChannel] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
       setName(user.name || '');
       setAvatar(user.avatar || '');
+      setTwitchChannel(user.twitchChannel || '');
     }
   }, [user]);
 
@@ -50,7 +52,7 @@ export default function Settings({ token, user, setUser, streamerMode, setStream
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await api.put('/profile', { name, avatar, isStreamerMode: streamerMode }, {
+      const response = await api.put('/profile', { name, avatar, isStreamerMode: streamerMode, twitchChannel: twitchChannel.trim() || null }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUser(response.data); // Atualiza o usuário global (o menu lateral vai mudar na hora)
@@ -97,6 +99,22 @@ export default function Settings({ token, user, setUser, streamerMode, setStream
             <span className="toggle-switch"></span>
           </label>
         </div>
+
+        {streamerMode && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 15px', border: '1px solid var(--input-border)', borderRadius: '8px', backgroundColor: 'var(--bg-color)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', flex: 1, paddingRight: '15px' }}>
+              <strong style={{ fontSize: '0.95rem', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '6px' }}>Canal da Twitch <span style={{ fontSize: '0.75rem', color: '#9146ff', fontWeight: 'normal' }}>● Twitch</span></strong>
+              <span style={{ fontSize: '0.8rem', color: '#aaa', marginTop: '4px', lineHeight: '1.4' }}>Usado para capturar as notas do chat automaticamente via votação.</span>
+            </div>
+            <input
+              type="text"
+              value={twitchChannel}
+              onChange={e => setTwitchChannel(e.target.value)}
+              placeholder="seu_canal"
+              style={{ width: '140px', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.9rem', flexShrink: 0 }}
+            />
+          </div>
+        )}
         
         {avatar && (
           <div style={{ textAlign: 'center', margin: '10px 0' }}>

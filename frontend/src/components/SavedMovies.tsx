@@ -5,19 +5,27 @@ import MovieDetailsModal from './MovieDetailsModal';
 import Modal from './Modal';
 import CustomDatePicker from './CustomDatePicker';
 import { Search } from 'lucide-react';
+import TwitchVotePanel from './TwitchVotePanel';
 
 interface SavedMoviesProps {
   token: string;
   streamerMode: boolean;
+  user: any;
 }
 
 // COMPONENTE ISOLADO: Garante que os filmes não re-renderizem ao digitar as notas!
-const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, sortBy, draggedMovieId, dragOverMovieId, setDraggedMovieId, setDragOverMovieId, onDrop, streamerMode, token }: any) => {
+const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, sortBy, draggedMovieId, dragOverMovieId, setDraggedMovieId, setDragOverMovieId, onDrop, streamerMode, token, twitchChannel }: any) => {
   const [requestedBy, setRequestedBy] = useState(movie.requestedBy || '');
   const [streamerRating, setStreamerRating] = useState(movie.streamerRating ?? '');
   const [chatRating, setChatRating] = useState(movie.chatRating ?? '');
   const [isEditing, setIsEditing] = useState(false);
   const [watchDate, setWatchDate] = useState(movie.watchDate ? new Date(movie.watchDate).toISOString().split('T')[0] : '');
+  const [showVotePanel, setShowVotePanel] = useState(false);
+
+  const handleVoteRatingUpdated = (movieId: number, newRating: number) => {
+    setChatRating(newRating);
+    onUpdate(movieId, { chatRating: newRating });
+  };
 
   // Sincroniza estados locais caso ocorra alguma alteração externa via Drag & Drop
   useEffect(() => setRequestedBy(movie.requestedBy || ''), [movie.requestedBy]);
@@ -108,13 +116,27 @@ const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, so
           {streamerMode && (
             <label className="input-label" style={{ width: '50%' }}>
               Nota Chat:
-              <input type="number" min="0" max="10" step="0.01" value={chatRating} onChange={(e) => setChatRating(e.target.value.replace(',', '.'))} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={() => {
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <input type="number" min="0" max="10" step="0.01" value={chatRating} onChange={(e) => setChatRating(e.target.value.replace(',', '.'))} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={() => {
                   if (chatRating !== (movie.chatRating ?? '')) {
                     let val = chatRating ? parseFloat(String(chatRating).replace(',', '.')) : null;
                     if (val !== null) { val = Math.max(0, Math.min(10, parseFloat(val.toFixed(2)))); }
                     onUpdate(movie.id, { chatRating: val });
                   }
                 }} />
+                <button 
+                  onClick={() => setShowVotePanel(true)} 
+                  title="Abrir votação no chat da Twitch"
+                  style={{ 
+                    padding: '7px 8px', borderRadius: '6px',
+                    background: 'linear-gradient(135deg, #9146ff, #6441a5)',
+                    color: 'white', border: 'none', cursor: 'pointer',
+                    fontSize: '0.85rem', lineHeight: '1', flexShrink: 0
+                  }}
+                >
+                  🗳️
+                </button>
+              </div>
             </label>
           )}
         </div>
@@ -145,11 +167,21 @@ const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, so
           </div>
         </div>
       </Modal>
+
+      <TwitchVotePanel
+        movieId={movie.id}
+        movieTitle={movie.title}
+        token={token}
+        twitchChannel={twitchChannel || ''}
+        isOpen={showVotePanel}
+        onClose={() => setShowVotePanel(false)}
+        onRatingUpdated={handleVoteRatingUpdated}
+      />
     </>
   );
 });
 
-export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
+export default function SavedMovies({ token, streamerMode, user }: SavedMoviesProps) {
   const [savedMovies, setSavedMovies] = useState<any[]>([]);
   const [selectedMovieDetails, setSelectedMovieDetails] = useState<any | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>(() => new Date().toISOString().substring(0, 7));
@@ -709,7 +741,7 @@ export default function SavedMovies({ token, streamerMode }: SavedMoviesProps) {
           key={movie.id} movie={movie} onUpdate={handleUpdateMovie} onDelete={handleDeleteMovie}
           onShowDetails={handleShowDetails} sortBy={sortBy} draggedMovieId={draggedMovieId} dragOverMovieId={dragOverMovieId}
           setDraggedMovieId={setDraggedMovieId} setDragOverMovieId={setDragOverMovieId} onDrop={handleDrop} streamerMode={streamerMode}
-          token={token}
+          token={token} twitchChannel={user?.twitchChannel || ''}
         />
       ))}
       

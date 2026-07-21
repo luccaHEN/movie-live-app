@@ -3,6 +3,7 @@ import { AuthController } from './controllers/AuthController';
 import { MovieController } from './controllers/MovieController';
 import { UserController } from './controllers/UserController';
 import { CommunityController } from './controllers/CommunityController';
+import { VoteController } from './controllers/VoteController';
 import { isAuthenticated, isAdministrator } from './middlewares/auth';
 import { prisma } from './prisma';
 
@@ -12,6 +13,7 @@ const authController = new AuthController();
 const movieController = new MovieController();
 const userController = new UserController();
 const communityController = new CommunityController();
+const voteController = new VoteController();
 
 // Rotas Públicas
 routes.post('/login', authController.login);
@@ -53,6 +55,11 @@ routes.get('/movies/public/:username', async (req, res) => {
 // Rotas Protegidas (Exigem o envio do Token no header de Autorização)
 routes.use(isAuthenticated);
 
+// Rotas de votação Twitch
+routes.post('/votes/start', voteController.start);
+routes.post('/votes/stop', voteController.stop);
+routes.get('/votes/status', voteController.status);
+
 // Rota de registro agora é protegida e só para administradores
 routes.post('/register', isAdministrator, authController.register);
 
@@ -67,6 +74,12 @@ routes.put('/movies/:id', movieController.update);
 routes.delete('/movies/:id', movieController.delete);
 routes.get('/profile', userController.getProfile);
 routes.put('/profile', userController.updateProfile);
+routes.put('/profile/twitch', async (req, res) => {
+  const userId = (req as any).userId;
+  const { twitchChannel } = req.body;
+  await prisma.user.update({ where: { id: userId }, data: { twitchChannel } });
+  return res.json({ message: 'Canal da Twitch salvo!' });
+});
 
 // Rotas da Comunidade
 routes.get('/community/streamers', communityController.getStreamers);

@@ -69,6 +69,7 @@ model User {
   followedStreamer String?
   followedStreamersList String[] @default([])
   isStreamerMode Boolean @default(false)
+  twitchChannel String?
   
   // Relacionamento inverso
   movies   Movie[]

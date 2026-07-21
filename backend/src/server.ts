@@ -4,6 +4,8 @@ import cors from 'cors';
 import { prisma } from './prisma';
 import { routes } from './routes';
 import { initCronJobs } from './cron';
+import http from 'http';
+import { initSocket } from './socket';
 
 const app = express();
 
@@ -28,7 +30,10 @@ app.use(routes);
 
 const PORT = process.env.PORT || 3333;
 
-app.listen(PORT, async () => {
+const server = http.createServer(app);
+initSocket(server, allowedOrigins);
+
+server.listen(PORT, async () => {
   // Tenta conectar ao banco para confirmar que está tudo ok
   await prisma.$connect();
   

@@ -25,7 +25,9 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "node-cron": "^4.4.1",
-    "pg": "^8.20.0"
+    "pg": "^8.20.0",
+    "socket.io": "^4.8.3",
+    "tmi.js": "^1.8.5"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
@@ -35,6 +37,8 @@
     "@types/node": "^25.5.2",
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.20.0",
+    "@types/socket.io": "^3.0.1",
+    "@types/tmi.js": "^1.8.6",
     "prisma": "^7.7.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",

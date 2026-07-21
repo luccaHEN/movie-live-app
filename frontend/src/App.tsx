@@ -93,7 +93,7 @@ export default function App() {
         <main className="main-content">
           {view === 'home' && <Home token={token} streamerMode={streamerMode} stats={stats} setShowBestMoviesModal={setShowBestMoviesModal} setShowTopRescuersModal={setShowTopRescuersModal} />}
           {view === 'search' && <MovieSearch token={token} streamerMode={streamerMode} />}
-          {view === 'saved' && <SavedMovies token={token} streamerMode={streamerMode} />}
+          {view === 'saved' && <SavedMovies token={token} streamerMode={streamerMode} user={user} />}
           {view === 'dashboard' && <Dashboard token={token} username={user?.name} streamerMode={streamerMode} user={user} />}
           {view === 'settings' && <Settings token={token} user={user} setUser={setUser} streamerMode={streamerMode} setStreamerMode={setStreamerMode} />}
           {view === 'register' && <RegisterUser token={token} />}
