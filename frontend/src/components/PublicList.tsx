@@ -204,13 +204,13 @@ export default function PublicList() {
   });
 
   const topRescuers = Object.entries(rescuerStats)
-    .filter(([name, stats]) => stats.totalRescues >= 3 && name.toLowerCase() !== 'chat' && name.toLowerCase() !== 'sumas')
+    .filter(([name, _stats]) => name.toLowerCase() !== 'chat' && name.toLowerCase() !== 'sumas')
     .map(([name, stats]) => ({
       name,
       totalRescues: stats.totalRescues,
       avgRating: stats.ratedCount > 0 ? (stats.ratingSum / stats.ratedCount).toFixed(1) : 'N/A',
     }))
-    .sort((a, b) => b.totalRescues - a.totalRescues);
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const filteredRescuers = topRescuers.filter(r => removeAccents(r.name.toLowerCase()).includes(lowerCaseQuery));
 
@@ -548,11 +548,7 @@ export default function PublicList() {
                       className="rating-card"
                       title={`Ver filmes resgatados por ${rescuer.name}`}
                     >
-                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary)', marginBottom: '5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{rescuer.name}</div>
-                      <div style={{ fontSize: '0.85rem', color: '#aaa', marginBottom: '10px' }}>{rescuer.totalRescues} filmes resgatados</div>
-                      <div style={{ display: 'inline-block', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.95rem' }}>
-                        Média Streamer: {rescuer.avgRating !== 'N/A' ? `⭐ ${rescuer.avgRating}` : 'Sem notas'}
-                      </div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{rescuer.name}</div>
                     </div>
                   ))}
                 </div>
