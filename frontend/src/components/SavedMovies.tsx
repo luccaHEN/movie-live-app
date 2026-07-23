@@ -150,7 +150,7 @@ const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, so
           {streamerMode && (
             <label className="input-label" style={{ margin: 0, fontSize: '0.9rem' }}>
               Resgatado por:
-              <input type="text" placeholder="Ninguém" value={requestedBy} onChange={(e) => setRequestedBy(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveEdit(); } }} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-color)', color: 'var(--text-color)', marginTop: '5px', outline: 'none' }} />
+              <input type="text" list="known-users-list" placeholder="Ninguém" value={requestedBy} onChange={(e) => setRequestedBy(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveEdit(); } }} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-color)', color: 'var(--text-color)', marginTop: '5px', outline: 'none' }} />
             </label>
           )}
           <label className="input-label" style={{ margin: 0, fontSize: '0.9rem' }}>
@@ -183,6 +183,14 @@ const MovieCardItem = React.memo(({ movie, onUpdate, onDelete, onShowDetails, so
 
 export default function SavedMovies({ token, streamerMode, user }: SavedMoviesProps) {
   const [savedMovies, setSavedMovies] = useState<any[]>([]);
+  
+  const knownUsers = React.useMemo(() => {
+    const users = new Set<string>();
+    savedMovies.forEach(m => {
+      if (m.requestedBy) users.add(m.requestedBy.trim());
+    });
+    return Array.from(users).filter(u => u && u.toLowerCase() !== 'ninguém').sort((a, b) => a.localeCompare(b));
+  }, [savedMovies]);
   const [selectedMovieDetails, setSelectedMovieDetails] = useState<any | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>(() => new Date().toISOString().substring(0, 7));
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
@@ -438,6 +446,9 @@ export default function SavedMovies({ token, streamerMode, user }: SavedMoviesPr
 
   return (
     <div className="saved-movies-container" style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '20px' }}>
+      <datalist id="known-users-list">
+        {knownUsers.map(u => <option key={u} value={u} />)}
+      </datalist>
       <style>
         {`
           .btn-reset-filters:hover {

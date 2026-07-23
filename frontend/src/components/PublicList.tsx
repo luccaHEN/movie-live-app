@@ -4,6 +4,29 @@ import { useParams } from 'react-router-dom';
 import api from '../services/api';
 import Modal from './Modal';
 
+export const ALL_BADGES = [
+  { icon: '🥉', title: 'Primeiro Passo', desc: 'Resgatou o seu primeiro filme', condition: (s: any) => s.totalRescues >= 1, progress: (s: any) => [Math.min(s.totalRescues, 1), 1] },
+  { icon: '🏅', title: 'Cinéfilo Fiel', desc: 'Resgatou 10 ou mais filmes', condition: (s: any) => s.totalRescues >= 10, progress: (s: any) => [Math.min(s.totalRescues, 10), 10] },
+  { icon: '👑', title: 'VIP da Live', desc: 'Resgatou incríveis 25 filmes', condition: (s: any) => s.totalRescues >= 25, progress: (s: any) => [Math.min(s.totalRescues, 25), 25] },
+  { icon: '👻', title: 'Tríplice Coroa', desc: 'Acertou 3 filmes com Nota 10', condition: (s: any) => s.masterpieceCount >= 3, progress: (s: any) => [Math.min(s.masterpieceCount, 3), 3] },
+  { icon: '🤣', title: 'Rindo à Toa', desc: 'Resgatou 3+ filmes de Comédia', condition: (s: any) => s.comedyCount >= 3, progress: (s: any) => [Math.min(s.comedyCount, 3), 3] },
+  { icon: '💥', title: 'Adrenalina Pura', desc: 'Resgatou 3+ filmes de Ação', condition: (s: any) => s.actionCount >= 3, progress: (s: any) => [Math.min(s.actionCount, 3), 3] },
+  { icon: '👽', title: 'Viajante Espacial', desc: 'Resgatou 3+ filmes de Ficção Científica', condition: (s: any) => s.scifiCount >= 3, progress: (s: any) => [Math.min(s.scifiCount, 3), 3] },
+  { icon: '🕵️', title: 'Detetive', desc: 'Resgatou 3+ filmes de Suspense/Mistério', condition: (s: any) => s.mysteryCount >= 3, progress: (s: any) => [Math.min(s.mysteryCount, 3), 3] },
+  { icon: '🎨', title: 'Alma de Criança', desc: 'Resgatou 3+ filmes de Animação', condition: (s: any) => s.animationCount >= 3, progress: (s: any) => [Math.min(s.animationCount, 3), 3] },
+  { icon: '🐉', title: 'Aventureiro Nato', desc: 'Resgatou 3+ filmes de Aventura', condition: (s: any) => s.adventureCount >= 3, progress: (s: any) => [Math.min(s.adventureCount, 3), 3] },
+  { icon: '💖', title: 'Coração Apaixonado', desc: 'Resgatou 2+ filmes de Romance', condition: (s: any) => s.romanceCount >= 2, progress: (s: any) => [Math.min(s.romanceCount, 2), 2] },
+  { icon: '🧙‍♂️', title: 'Mundo da Fantasia', desc: 'Resgatou 3+ filmes de Fantasia', condition: (s: any) => s.fantasyCount >= 3, progress: (s: any) => [Math.min(s.fantasyCount, 3), 3] },
+  { icon: '⚔️', title: 'Historiador', desc: 'Resgatou 2+ filmes Históricos ou Guerra', condition: (s: any) => s.historyCount >= 2, progress: (s: any) => [Math.min(s.historyCount, 2), 2] },
+  { icon: '😭', title: 'Mar de Lágrimas', desc: 'Resgatou 3+ filmes de Drama', condition: (s: any) => s.dramaCount >= 3, progress: (s: any) => [Math.min(s.dramaCount, 3), 3] },
+  { icon: '🚔', title: 'Casca Grossa', desc: 'Resgatou 2+ filmes de Crime ou Policial', condition: (s: any) => s.crimeCount >= 2, progress: (s: any) => [Math.min(s.crimeCount, 2), 2] },
+  { icon: '👪', title: 'Sessão da Tarde', desc: 'Resgatou 3+ filmes para Família', condition: (s: any) => s.familyCount >= 3, progress: (s: any) => [Math.min(s.familyCount, 3), 3] },
+  { icon: '🎸', title: 'Estrela do Rock', desc: 'Resgatou 2+ filmes Musicais', condition: (s: any) => s.musicCount >= 2, progress: (s: any) => [Math.min(s.musicCount, 2), 2] },
+  { icon: '🗑️', title: 'Gosto Duvidoso', desc: 'Mandou 2+ filmes pro Hall do Lixo', condition: (s: any) => s.trashCount >= 2, progress: (s: any) => [Math.min(s.trashCount, 2), 2] },
+  { icon: '👼', title: 'Anjo da Guarda', desc: 'Acertou em cheio! Um filme seu recebeu Nota 10', condition: (s: any) => s.hasMasterpiece, progress: (s: any) => [s.hasMasterpiece ? 1 : 0, 1] },
+  { icon: '💔', title: 'Decepção', desc: 'Errou feio! Um filme seu recebeu nota 3 ou menos', condition: (s: any) => s.hasDisaster, progress: (s: any) => [s.hasDisaster ? 1 : 0, 1] },
+];
+
 export default function PublicList() {
   // Assumindo que a URL seja algo como /lista-publica/:username
   const { username } = useParams();
@@ -18,7 +41,7 @@ export default function PublicList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState('');
   const [selectedRescuer, setSelectedRescuer] = useState<string | null>(null);
-  const [view, setView] = useState<'CALENDAR' | 'WATCHED' | 'RATINGS'>('CALENDAR');
+  const [view, setView] = useState<'CALENDAR' | 'WATCHED' | 'RATINGS' | 'BADGES'>('CALENDAR');
   const [calendarMonth, setCalendarMonth] = useState(() => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), 1); });
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | 'none'>('none');
   const [selectedDay, setSelectedDay] = useState<{ date: string, movies: any[] } | null>(null);
@@ -135,18 +158,48 @@ export default function PublicList() {
   };
 
   // Lógica para agrupar e calcular a média de notas dos resgatadores (mínimo de 3 filmes)
-  const rescuerStats: Record<string, { totalRescues: number, ratedCount: number, ratingSum: number }> = {};
+  const rescuerStats: Record<string, { totalRescues: number, ratedCount: number, ratingSum: number, masterpieceCount: number, trashCount: number, comedyCount: number, actionCount: number, scifiCount: number, mysteryCount: number, animationCount: number, adventureCount: number, romanceCount: number, fantasyCount: number, historyCount: number, dramaCount: number, crimeCount: number, familyCount: number, musicCount: number, hasMasterpiece: boolean, hasDisaster: boolean }> = {};
   movies.forEach(m => {
     const name = m.requestedBy?.trim();
     if (!name || name.toLowerCase() === 'ninguém') return;
 
     if (!rescuerStats[name]) {
-      rescuerStats[name] = { totalRescues: 0, ratedCount: 0, ratingSum: 0 };
+      rescuerStats[name] = { 
+        totalRescues: 0, ratedCount: 0, ratingSum: 0, 
+        masterpieceCount: 0, trashCount: 0, comedyCount: 0, actionCount: 0, scifiCount: 0, mysteryCount: 0, animationCount: 0,
+        adventureCount: 0, romanceCount: 0, fantasyCount: 0, historyCount: 0, dramaCount: 0, crimeCount: 0, familyCount: 0, musicCount: 0,
+        hasMasterpiece: false, hasDisaster: false
+      };
     }
-    rescuerStats[name].totalRescues += 1;
+    const s = rescuerStats[name];
+    s.totalRescues += 1;
     if (m.watched && m.streamerRating != null) {
-      rescuerStats[name].ratedCount += 1;
-      rescuerStats[name].ratingSum += m.streamerRating;
+      s.ratedCount += 1;
+      s.ratingSum += m.streamerRating;
+      if (m.streamerRating === 10) {
+        s.hasMasterpiece = true;
+        s.masterpieceCount += 1;
+      }
+      if (m.streamerRating <= 3) {
+        s.trashCount += 1;
+        s.hasDisaster = true;
+      }
+    }
+    if (m.genre) {
+      const g = m.genre.toLowerCase();
+      if (g.includes('comédia') || g.includes('comedy')) s.comedyCount += 1;
+      if (g.includes('ação') || g.includes('action')) s.actionCount += 1;
+      if (g.includes('ficção') || g.includes('sci-fi')) s.scifiCount += 1;
+      if (g.includes('mistério') || g.includes('suspense') || g.includes('thriller')) s.mysteryCount += 1;
+      if (g.includes('animação') || g.includes('animation')) s.animationCount += 1;
+      if (g.includes('aventura') || g.includes('adventure')) s.adventureCount += 1;
+      if (g.includes('romance')) s.romanceCount += 1;
+      if (g.includes('fantasia') || g.includes('fantasy')) s.fantasyCount += 1;
+      if (g.includes('história') || g.includes('history') || g.includes('guerra') || g.includes('war')) s.historyCount += 1;
+      if (g.includes('drama')) s.dramaCount += 1;
+      if (g.includes('crime') || g.includes('policial')) s.crimeCount += 1;
+      if (g.includes('família') || g.includes('family')) s.familyCount += 1;
+      if (g.includes('música') || g.includes('musical')) s.musicCount += 1;
     }
   });
 
@@ -202,6 +255,25 @@ export default function PublicList() {
           .watched-movie-card:hover { transform: scale(1.03); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
           .rating-card { background-color: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--input-border); text-align: center; cursor: pointer; transition: all 0.2s ease-in-out; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
           .rating-card:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 8px 25px rgba(var(--primary-rgb), 0.15); border-color: var(--primary); }
+          
+          .badge-card:hover { transform: translateY(-5px) scale(1.02) !important; box-shadow: 0 8px 25px rgba(245, 158, 11, 0.2) !important; border-color: var(--primary) !important; }
+          
+          .profile-stat-card { transition: all 0.3s ease; }
+          .profile-stat-card:hover { transform: translateY(-5px) scale(1.05); box-shadow: 0 8px 25px rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.2) !important; }
+          
+          .profile-badge { position: relative; transition: all 0.3s ease; cursor: default; }
+          .profile-badge:hover { transform: scale(1.05) rotate(2deg); border-color: var(--primary) !important; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.2); }
+          .profile-badge .tooltip-text { visibility: hidden; opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background-color: #111; color: #fff; text-align: center; padding: 8px 12px; border-radius: 8px; z-index: 100; font-size: 0.9rem; font-weight: normal; white-space: nowrap; transition: opacity 0.2s, bottom 0.2s; pointer-events: none; border: 1px solid var(--primary); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+          .profile-badge:hover .tooltip-text { visibility: visible; opacity: 1; bottom: 120%; }
+          
+          .badges-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; }
+          @media (max-width: 1200px) { .badges-grid { grid-template-columns: repeat(4, 1fr); } }
+          @media (max-width: 900px) { .badges-grid { grid-template-columns: repeat(3, 1fr); } }
+          @media (max-width: 600px) { .badges-grid { grid-template-columns: repeat(2, 1fr); } }
+          @media (max-width: 400px) { .badges-grid { grid-template-columns: 1fr; } }
+          
+          .profile-movie-card { transition: transform 0.2s, box-shadow 0.2s; }
+          .profile-movie-card:hover { transform: scale(1.02); box-shadow: 0 5px 15px rgba(0,0,0,0.3); border-color: var(--primary) !important; }
 
           .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 5px; flex: 1; min-height: 0; }
           .calendar-header { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; text-align: center; font-weight: bold; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--input-border); color: #aaa; font-size: 0.9rem; }
@@ -240,33 +312,173 @@ export default function PublicList() {
         `}
       </style>
 
-      {/* Todo conteúdo rolável centralizado no Main, com header sticky */}
-      <main style={{ flex: 1, overflowY: 'auto', width: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', paddingTop: '20px' }}>
-        
-        {/* Cabeçalho Sticky Unificado (Título e Filtros no mesmo nível) */}
-        <header className="public-card" style={{ position: 'sticky', top: '20px', zIndex: 10, flexShrink: 0, margin: '0 auto 40px auto', width: 'calc(100% - 40px)', maxWidth: '1400px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '20px', padding: '15px 20px', boxSizing: 'border-box' }}>
-          <h1 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.5rem' }}>
-            Lista de Filmes - {username} 🎬
-          </h1>
+      {/* Cabeçalho Fixo (Título e Filtros no mesmo nível) */}
+      <header className="public-card" style={{ zIndex: 10, flexShrink: 0, margin: '20px auto', width: 'calc(100% - 40px)', maxWidth: '1400px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '20px', padding: '15px 20px', boxSizing: 'border-box' }}>
+        <h1 style={{ color: 'var(--primary)', margin: 0, fontSize: '1.5rem' }}>
+          Lista de Filmes - {username} 🎬
+        </h1>
 
-          <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center', flex: 1, justifyContent: 'flex-end' }}>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button className={view === 'CALENDAR' ? 'btn-primary' : 'btn-secondary'} onClick={() => setView('CALENDAR')} style={{ width: 'auto', margin: 0, padding: '8px 14px', fontSize: '0.9rem' }}>📅 Calendário</button>
-              <button className={view === 'WATCHED' ? 'btn-primary' : 'btn-secondary'} onClick={() => setView('WATCHED')} style={{ width: 'auto', margin: 0, padding: '8px 14px', fontSize: '0.9rem' }}>✅ Já Assistidos</button>
-              <button className={view === 'RATINGS' ? 'btn-primary' : 'btn-secondary'} onClick={() => setView('RATINGS')} style={{ width: 'auto', margin: 0, padding: '8px 14px', fontSize: '0.9rem' }}>🏆 Notas</button>
-            </div>
-            
-            <input
-              type="text"
-              placeholder="🔍 Buscar filme ou nick..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              style={{ flex: '1 1 200px', maxWidth: '300px', padding: '10px 15px', borderRadius: '8px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-color)', color: '#fff', outline: 'none', boxSizing: 'border-box', fontSize: '0.9rem' }}
-            />
+        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center', flex: 1, justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button className={view === 'CALENDAR' && !selectedRescuer ? 'btn-primary' : 'btn-secondary'} onClick={() => { setView('CALENDAR'); setSelectedRescuer(null); }} style={{ width: 'auto', margin: 0, padding: '8px 14px', fontSize: '0.9rem' }}>📅 Calendário</button>
+            <button className={view === 'WATCHED' && !selectedRescuer ? 'btn-primary' : 'btn-secondary'} onClick={() => { setView('WATCHED'); setSelectedRescuer(null); }} style={{ width: 'auto', margin: 0, padding: '8px 14px', fontSize: '0.9rem' }}>✅ Já Assistidos</button>
+            <button className={view === 'RATINGS' && !selectedRescuer ? 'btn-primary' : 'btn-secondary'} onClick={() => { setView('RATINGS'); setSelectedRescuer(null); }} style={{ width: 'auto', margin: 0, padding: '8px 14px', fontSize: '0.9rem' }}>🏆 Viewers</button>
+            <button className={view === 'BADGES' && !selectedRescuer ? 'btn-primary' : 'btn-secondary'} onClick={() => { setView('BADGES'); setSelectedRescuer(null); }} style={{ width: 'auto', margin: 0, padding: '8px 14px', fontSize: '0.9rem' }}>🎖️ Conquistas</button>
           </div>
-        </header>
+          
+          <input
+            type="text"
+            placeholder="🔍 Buscar filme ou nick..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{ flex: '1 1 200px', maxWidth: '300px', padding: '10px 15px', borderRadius: '8px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-color)', color: '#fff', outline: 'none', boxSizing: 'border-box', fontSize: '0.9rem' }}
+          />
+        </div>
+      </header>
 
-          {view === 'CALENDAR' && (
+      {/* Todo conteúdo rolável centralizado no Main */}
+      <main style={{ flex: 1, overflowY: 'auto', width: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', paddingBottom: '20px' }}>
+
+        {selectedRescuer ? (
+          (() => {
+            let favoriteGenre = 'Nenhum';
+            let avgRating = 'S/N';
+            const badges: any[] = [];
+            const s = { 
+              totalRescues: rescuerMovies.length,
+              masterpieceCount: 0, trashCount: 0, comedyCount: 0, actionCount: 0, scifiCount: 0, mysteryCount: 0, animationCount: 0,
+              adventureCount: 0, romanceCount: 0, fantasyCount: 0, historyCount: 0, dramaCount: 0, crimeCount: 0, familyCount: 0, musicCount: 0,
+              hasMasterpiece: false, hasDisaster: false
+            };
+
+            if (rescuerMovies.length > 0) {
+              const genreCounts: Record<string, number> = {};
+              let ratingSum = 0;
+              let ratedCount = 0;
+
+              rescuerMovies.forEach(m => {
+                if (m.genre) {
+                  const genres = m.genre.split(',').map((g: string) => g.trim());
+                  genres.forEach((g: string) => {
+                    if (g) {
+                      genreCounts[g] = (genreCounts[g] || 0) + 1;
+                      const gl = g.toLowerCase();
+                      if (gl.includes('comédia') || gl.includes('comedy')) s.comedyCount++;
+                      if (gl.includes('ação') || gl.includes('action')) s.actionCount++;
+                      if (gl.includes('ficção') || gl.includes('sci-fi')) s.scifiCount++;
+                      if (gl.includes('mistério') || gl.includes('suspense') || gl.includes('thriller')) s.mysteryCount++;
+                      if (gl.includes('animação') || gl.includes('animation')) s.animationCount++;
+                      if (gl.includes('aventura') || gl.includes('adventure')) s.adventureCount++;
+                      if (gl.includes('romance')) s.romanceCount++;
+                      if (gl.includes('fantasia') || gl.includes('fantasy')) s.fantasyCount++;
+                      if (gl.includes('história') || gl.includes('history') || gl.includes('guerra') || gl.includes('war')) s.historyCount++;
+                      if (gl.includes('drama')) s.dramaCount++;
+                      if (gl.includes('crime') || gl.includes('policial')) s.crimeCount++;
+                      if (gl.includes('família') || gl.includes('family')) s.familyCount++;
+                      if (gl.includes('música') || gl.includes('musical')) s.musicCount++;
+                    }
+                  });
+                }
+                if (m.watched && m.streamerRating != null) {
+                  ratingSum += m.streamerRating;
+                  ratedCount++;
+                  if (m.streamerRating === 10) {
+                    s.hasMasterpiece = true;
+                    s.masterpieceCount++;
+                  }
+                  if (m.streamerRating <= 3) {
+                    s.hasDisaster = true;
+                    s.trashCount++;
+                  }
+                }
+              });
+
+              if (Object.keys(genreCounts).length > 0) {
+                favoriteGenre = Object.entries(genreCounts).sort((a, b) => b[1] - a[1])[0][0];
+              }
+
+              const calculatedAvg = ratedCount > 0 ? (ratingSum / ratedCount) : null;
+              if (calculatedAvg !== null) { avgRating = calculatedAvg.toFixed(1); }
+
+              ALL_BADGES.forEach(badge => {
+                if (badge.condition(s)) badges.push(badge);
+              });
+            }
+
+              const displayedRescuerMovies = rescuerMovies.filter(m => 
+                searchQuery.trim() === '' || 
+                removeAccents(m.title.toLowerCase()).includes(lowerCaseQuery)
+              );
+
+            return (
+              <div style={{ width: 'calc(100% - 40px)', maxWidth: '1400px', margin: '0 auto 20px auto', boxSizing: 'border-box' }}>
+                <button onClick={() => setSelectedRescuer(null)} className="btn-secondary" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px' }}>
+                  <ArrowLeft size={18} /> Voltar para listas
+                </button>
+                <div className="public-card" style={{ padding: '30px' }}>
+                  <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+                    <h2 style={{ margin: '0 0 15px 0', color: 'var(--primary)', fontSize: '2.2rem' }}>Perfil de {selectedRescuer}</h2>
+                    <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '30px' }}>
+                      <div className="profile-stat-card" style={{ background: 'rgba(255,255,255,0.05)', padding: '15px 25px', borderRadius: '12px', minWidth: '120px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#fff' }}>{rescuerMovies.length}</div>
+                        <div style={{ fontSize: '0.8rem', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px' }}>Resgates</div>
+                      </div>
+                      <div className="profile-stat-card" style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '15px 25px', borderRadius: '12px', minWidth: '120px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                        <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#f59e0b' }}>{avgRating}</div>
+                        <div style={{ fontSize: '0.8rem', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px' }}>Média de Nota</div>
+                      </div>
+                      <div className="profile-stat-card" style={{ background: 'rgba(139, 92, 246, 0.1)', padding: '15px 25px', borderRadius: '12px', minWidth: '120px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#8b5cf6', marginTop: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px', margin: '8px auto 0 auto' }}>{favoriteGenre}</div>
+                        <div style={{ fontSize: '0.8rem', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '6px' }}>Gênero Favorito</div>
+                      </div>
+                    </div>
+                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <h3 style={{ margin: 0, fontSize: '1rem', color: '#888', textTransform: 'uppercase', letterSpacing: '2px' }}>Progresso das Conquistas</h3>
+                        <span style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: 'bold' }}>{badges.length} / {ALL_BADGES.length} ({Math.round((badges.length / ALL_BADGES.length) * 100)}%)</span>
+                      </div>
+                      <div style={{ width: '100%', height: '6px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', marginBottom: '20px' }}>
+                        <div style={{ width: `${(badges.length / ALL_BADGES.length) * 100}%`, height: '100%', backgroundColor: 'var(--primary)', transition: 'width 1s ease-out' }}></div>
+                      </div>
+                        <div className="badges-grid">
+                          {ALL_BADGES.map((b: any) => {
+                            const isUnlocked = badges.some(unlockedBadge => unlockedBadge.title === b.title);
+                            const [current, total] = b.progress ? b.progress(s) : [0, 1];
+                            const tooltipContent = isUnlocked ? b.desc : `Bloqueado: ${b.desc} (${current}/${total})`;
+                            return (
+                              <div key={b.title} className="profile-badge" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: isUnlocked ? 'var(--card-bg)' : 'rgba(255,255,255,0.05)', border: isUnlocked ? '1px solid var(--primary)' : '1px solid rgba(255,255,255,0.15)', padding: '12px', borderRadius: '30px', opacity: isUnlocked ? 1 : 0.7 }}>
+                                <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: isUnlocked ? '#fff' : '#aaa', textAlign: 'center' }}>{b.title}</span>
+                                <div className="tooltip-text">{tooltipContent}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                  </div>
+                  <h3 style={{ fontSize: '1.2rem', color: '#aaa', marginBottom: '20px', borderBottom: '1px solid var(--input-border)', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>🎬 Histórico de Filmes</h3>
+                  {displayedRescuerMovies.length === 0 ? <p style={{ textAlign: 'center', color: '#666' }}>Nenhum filme encontrado na busca.</p> : (
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '15px' }}>
+                      {displayedRescuerMovies.map(movie => (
+                        <li key={movie.id} className="profile-movie-card" style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', backgroundColor: 'var(--bg-color)', borderRadius: '10px', border: '1px solid var(--input-border)' }}>
+                          <div>{movie.poster ? <img src={`https://image.tmdb.org/t/p/w92${movie.poster}`} alt={movie.title} style={{ width: '50px', height: '75px', objectFit: 'cover', borderRadius: '6px', opacity: movie.watched ? 0.6 : 1 }} /> : <div style={{ width: '50px', height: '75px', backgroundColor: '#2a2a35', borderRadius: '6px' }} />}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <strong style={{ fontSize: '1.1rem', display: 'block', color: movie.watched ? '#999' : '#fff', textDecoration: movie.watched ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{movie.title}</strong>
+                            <div style={{ fontSize: '0.85rem', color: '#777', marginTop: '4px' }}>{movie.watched ? (movie.watchDate ? `Assistido em ${new Date(movie.watchDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}` : 'Assistido') : (movie.watchDate ? `Fila: ${new Date(movie.watchDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}` : 'Sem data')}</div>
+                          </div>
+                          <div style={{ color: movie.watched ? '#f59e0b' : '#10b981', fontWeight: 'bold', padding: '6px 12px', borderRadius: '8px', border: `1px solid ${movie.watched ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)'}` }}>
+                            {movie.watched ? (movie.streamerRating != null ? `⭐ ${movie.streamerRating.toFixed(1)}` : 'S/N') : 'Agendado'}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            );
+          })()
+        ) : (
+          <>
+            {view === 'CALENDAR' && (
             <div className="public-card" style={{ width: 'calc(100% - 40px)', maxWidth: '1400px', margin: '0 auto 20px auto', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                 <button onClick={() => { setSlideDirection('right'); setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)); }} className="btn-secondary" style={{ width: 'auto', margin: 0, padding: '8px 15px' }}><span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><ArrowLeft size={16} /> Anterior</span></button>
@@ -325,7 +537,7 @@ export default function PublicList() {
             <div style={{ width: 'calc(100% - 40px)', maxWidth: '1400px', margin: '0 auto 20px auto', boxSizing: 'border-box' }}>
               {filteredRescuers.length === 0 ? <p style={{ textAlign: 'center' }}>Nenhum resgatador encontrado.</p> : (
                 <h2 style={{ color: '#8b5cf6', borderBottom: '1px solid #333', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  🏆 Média de Notas
+                  🏆 Viewers
                 </h2>
               )}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px', marginTop: '20px', alignContent: 'start' }}>
@@ -412,45 +624,34 @@ export default function PublicList() {
               )}
             </div>
           )}
+          {view === 'BADGES' && (
+            <div style={{ width: 'calc(100% - 40px)', maxWidth: '1400px', margin: '0 auto 20px auto', boxSizing: 'border-box' }}>
+                <h2 style={{ color: '#facc15', borderBottom: '1px solid #333', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  🎖️ Mural de Conquistas
+                </h2>
+                <p style={{ color: '#aaa', marginBottom: '20px' }}>Confira todas as conquistas possíveis e o que é necessário para desbloqueá-las!</p>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+                  {ALL_BADGES.map(badge => {
+                    return (
+                      <div key={badge.title} className="public-card badge-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', borderTop: '4px solid var(--primary)', justifyContent: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                          <div>
+                            <h3 style={{ margin: 0, color: 'var(--text-color)', fontSize: '1.3rem' }}>{badge.title}</h3>
+                            <span style={{ fontSize: '0.9rem', color: '#888' }}>{badge.desc}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </main>
 
-      {/* Modal de Detalhes dos Resgates */}
-      <Modal isOpen={!!selectedRescuer} onClose={() => setSelectedRescuer(null)} maxWidth="600px">
-        <h2 style={{ marginBottom: '20px', color: 'var(--primary)', textAlign: 'center' }}>
-          🍿 Resgates de {selectedRescuer}
-        </h2>
-        {rescuerMovies.length === 0 ? (
-          <p style={{ textAlign: 'center' }}>Nenhum filme encontrado.</p>
-        ) : (
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            {rescuerMovies.map(movie => (
-              <li 
-                key={movie.id} 
-                style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '12px 15px', backgroundColor: 'var(--card-bg)', borderRadius: '8px', marginBottom: '10px', border: '1px solid var(--input-border)', transition: 'transform 0.2s, box-shadow 0.2s' }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = 'none'; }}
-              >
-                <div>
-                  {movie.poster ? (
-                    <img src={`https://image.tmdb.org/t/p/w92${movie.poster}`} alt={movie.title} style={{ width: '40px', height: '60px', objectFit: 'cover', borderRadius: '4px', opacity: movie.watched ? 0.7 : 1 }} />
-                  ) : (
-                    <div style={{ width: '40px', height: '60px', backgroundColor: '#333', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: '#aaa', textAlign: 'center', opacity: movie.watched ? 0.7 : 1 }}>Sem capa</div>
-                  )}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <strong style={{ fontSize: '1rem', display: 'block', color: movie.watched ? '#aaa' : 'var(--text-color)', textDecoration: movie.watched ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={movie.title}>{movie.title}</strong>
-                  <div style={{ fontSize: '0.8rem', color: '#888', marginTop: '2px' }}>
-                    {movie.watched ? (movie.watchDate ? `Assistido em ${new Date(movie.watchDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}` : 'Assistido') : (movie.watchDate ? `Na fila para ${new Date(movie.watchDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}` : 'Sem data')}
-                  </div>
-                </div>
-                <div style={{ color: movie.watched ? '#f59e0b' : '#10b981', fontWeight: 'bold', backgroundColor: movie.watched ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', padding: '5px 10px', borderRadius: '6px', textAlign: 'center', minWidth: '80px' }}>
-                  {movie.watched ? (movie.streamerRating != null ? `⭐ ${movie.streamerRating.toFixed(1)}` : 'Sem nota') : 'Agendado'}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Modal>
+
 
       {/* Modal de Filmes do Dia (Calendário) */}
       <Modal isOpen={!!selectedDay} onClose={() => setSelectedDay(null)} maxWidth="550px">

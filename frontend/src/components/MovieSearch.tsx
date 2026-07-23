@@ -26,6 +26,7 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
   const [savedMoviesMap, setSavedMoviesMap] = useState<Record<number, string | number>>({});
   const [movieToRemove, setMovieToRemove] = useState<{ id: number, title: string } | null>(null);
   const [drafts, setDrafts] = useState<Record<number, { requestedBy?: string, watchDate?: string }>>({});
+  const [knownUsers, setKnownUsers] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -89,10 +90,13 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
       try {
         const res = await api.get('/movies', { headers: { Authorization: `Bearer ${token}` } });
         const map: Record<number, string | number> = {};
+        const users = new Set<string>();
         res.data.forEach((m: any) => {
           if (m.tmdbId) map[m.tmdbId] = m.id;
+          if (m.requestedBy) users.add(m.requestedBy.trim());
         });
         setSavedMoviesMap(map);
+        setKnownUsers(Array.from(users).filter(u => u && u.toLowerCase() !== 'ninguém').sort((a, b) => a.localeCompare(b)));
       } catch (e) {}
     };
     fetchSaved();
@@ -268,6 +272,9 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
 
   return (
     <>
+      <datalist id="known-users-list">
+        {knownUsers.map(u => <option key={u} value={u} />)}
+      </datalist>
       <style>
         {`
           .premium-search-container {
@@ -414,6 +421,7 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
                     Resgatado por:
                     <input 
                       type="text" 
+                      list="known-users-list"
                       placeholder="Ex: viewer123" 
                       value={drafts[movie.id]?.requestedBy || ''} 
                       onChange={(e) => setDrafts({ ...drafts, [movie.id]: { ...drafts[movie.id], requestedBy: e.target.value } })}

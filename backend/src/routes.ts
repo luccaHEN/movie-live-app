@@ -42,6 +42,8 @@ routes.get('/movies/public/:username', async (req, res) => {
         watchDate: true,
         requestedBy: true,
         streamerRating: true,
+        genre: true,
+        isTrash: true,
       }
     });
 
