@@ -12,34 +12,46 @@ interface CustomDatePickerProps {
   disabled?: boolean;
 }
 
+interface MovieInfo {
+  title: string;
+  poster: string | null;
+  watched: boolean;
+  requestedBy?: string;
+}
+
 // Cache global compartilhado entre todas as instâncias
-let globalDates: Set<string> = new Set();
+let globalMoviesByDate: Map<string, MovieInfo[]> = new Map();
 let globalVersion = 0;
 let fetchPromise: Promise<void> | null = null;
 
-// Lista de callbacks para notificar todas as instâncias montadas
 const listeners: Set<() => void> = new Set();
 
 function refreshDates(token: string) {
-  // Evita fetches simultâneos
   if (fetchPromise) return fetchPromise;
   fetchPromise = api.get('/movies', { headers: { Authorization: `Bearer ${token}` } })
     .then(res => {
-      const dates = new Set<string>();
+      const moviesByDate = new Map<string, MovieInfo[]>();
       const movies = Array.isArray(res.data) ? res.data : (res.data?.data || []);
       movies.forEach((m: any) => {
         if (m.watchDate) {
           const d = new Date(m.watchDate);
-          dates.add(
+          const dateKey =
             d.getUTCFullYear() + '-' +
             String(d.getUTCMonth() + 1).padStart(2, '0') + '-' +
-            String(d.getUTCDate()).padStart(2, '0')
-          );
+            String(d.getUTCDate()).padStart(2, '0');
+
+          const existing = moviesByDate.get(dateKey) || [];
+          existing.push({
+            title: m.title || 'Sem título',
+            poster: m.poster || null,
+            watched: !!m.watched,
+            requestedBy: m.requestedBy || undefined,
+          });
+          moviesByDate.set(dateKey, existing);
         }
       });
-      globalDates = dates;
+      globalMoviesByDate = moviesByDate;
       globalVersion++;
-      // Notifica TODAS as instâncias montadas para re-renderizar
       listeners.forEach(fn => fn());
     })
     .catch(() => {})
@@ -47,17 +59,13 @@ function refreshDates(token: string) {
   return fetchPromise;
 }
 
-// Escuta globalmente o evento moviesUpdated (uma só vez)
 if (typeof window !== 'undefined') {
   let registeredToken: string | null = null;
-
   window.addEventListener('moviesUpdated', () => {
     if (registeredToken) {
       refreshDates(registeredToken);
     }
   });
-
-  // Exporta uma forma de registrar o token
   (window as any).__cdpSetToken = (t: string) => { registeredToken = t; };
 }
 
@@ -69,30 +77,92 @@ function toDateStr(d: Date): string {
   ].join('-');
 }
 
+function DayTooltip({ movies, tileEl }: { movies: MovieInfo[]; tileEl: HTMLElement | null }) {
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    if (!tileEl || !tooltipRef.current) return;
+    const tileRect = tileEl.getBoundingClientRect();
+    const tooltipRect = tooltipRef.current.getBoundingClientRect();
+    const pad = 8;
+
+    let top = tileRect.top - tooltipRect.height - pad;
+    let left = tileRect.left + tileRect.width / 2 - tooltipRect.width / 2;
+
+    if (top < pad) {
+      top = tileRect.bottom + pad;
+    }
+    if (left + tooltipRect.width > window.innerWidth - pad) {
+      left = window.innerWidth - tooltipRect.width - pad;
+    }
+    if (left < pad) {
+      left = pad;
+    }
+
+    setPos({ top, left });
+  }, [tileEl]);
+
+  return createPortal(
+    <div
+      ref={tooltipRef}
+      className="cdp-tooltip"
+      style={pos ? { top: pos.top, left: pos.left, opacity: 1 } : { top: -9999, left: -9999, opacity: 0 }}
+    >
+      <div className="cdp-tooltip-header">
+        🎬 {movies.length} filme{movies.length > 1 ? 's' : ''} neste dia
+      </div>
+      <div className="cdp-tooltip-list">
+        {movies.map((movie, i) => (
+          <div key={i} className="cdp-tooltip-movie">
+            {movie.poster ? (
+              <img src={`https://image.tmdb.org/t/p/w92${movie.poster}`} alt={movie.title} className="cdp-tooltip-poster" />
+            ) : (
+              <div className="cdp-tooltip-poster-placeholder">🎬</div>
+            )}
+            <div className="cdp-tooltip-info">
+              <span className="cdp-tooltip-title">{movie.title}</span>
+              {movie.requestedBy && (
+                <span className="cdp-tooltip-requested">Resgatado por {movie.requestedBy}</span>
+              )}
+            </div>
+            <span className={`cdp-tooltip-status ${movie.watched ? 'cdp-tooltip-status--watched' : 'cdp-tooltip-status--pending'}`}>
+              {movie.watched ? '✓' : '⏳'}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export default function CustomDatePicker({ value, onChange, token, disabled }: CustomDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [version, setVersion] = useState(globalVersion);
   const triggerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
+  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const [hoveredTileEl, setHoveredTileEl] = useState<HTMLElement | null>(null);
 
-  // Registra o token para o listener global
   useEffect(() => {
     (window as any).__cdpSetToken?.(token);
   }, [token]);
 
-  // Se inscreve para receber notificações de mudança nos dados
   useEffect(() => {
     const onUpdate = () => setVersion(globalVersion);
     listeners.add(onUpdate);
     return () => { listeners.delete(onUpdate); };
   }, []);
 
-  // Busca os dados ao abrir o calendário pela primeira vez
   useEffect(() => {
     if (isOpen) {
       updatePosition();
       refreshDates(token);
+    } else {
+      setHoveredDate(null);
+      setHoveredTileEl(null);
     }
   }, [isOpen, token]);
 
@@ -118,7 +188,6 @@ export default function CustomDatePicker({ value, onChange, token, disabled }: C
     setDropdownPos({ top, left });
   }, []);
 
-  // Fecha ao clicar fora
   useEffect(() => {
     if (!isOpen) return;
     const handleClickOutside = (event: MouseEvent) => {
@@ -140,13 +209,41 @@ export default function CustomDatePicker({ value, onChange, token, disabled }: C
     };
   }, [isOpen]);
 
-  // tileContent sem useCallback — sempre usa globalDates direto
+  // Sem setTimeout para aparecer instantaneamente
+  const handleTileMouseEnter = useCallback((dateStr: string, event: React.MouseEvent) => {
+    const movies = globalMoviesByDate.get(dateStr);
+    if (movies && movies.length > 0) {
+      setHoveredDate(dateStr);
+      setHoveredTileEl(event.currentTarget as HTMLElement);
+    }
+  }, []);
+
+  const handleTileMouseLeave = useCallback(() => {
+    setHoveredDate(null);
+    setHoveredTileEl(null);
+  }, []);
+
   const tileContent = ({ date, view }: { date: Date; view: string }) => {
     if (view !== 'month') return null;
     const dateStr = toDateStr(date);
-    const hasMovie = globalDates.has(dateStr);
+    const movies = globalMoviesByDate.get(dateStr);
+    const hasMovie = movies && movies.length > 0;
+    
+    // Fallback nativo: string com os títulos dos filmes
+    const nativeTooltip = hasMovie ? movies.map(m => m.title).join(', ') : undefined;
+
     return (
-      <span className={hasMovie ? 'cdp-dot cdp-dot--occupied' : 'cdp-dot cdp-dot--free'} />
+      <div
+        className={`cdp-dot-wrapper ${hasMovie ? 'cdp-dot-wrapper--has-movies' : ''}`}
+        onMouseEnter={(e) => handleTileMouseEnter(dateStr, e)}
+        onMouseLeave={handleTileMouseLeave}
+        title={nativeTooltip}
+      >
+        <span className={hasMovie ? 'cdp-dot cdp-dot--occupied' : 'cdp-dot cdp-dot--free'} />
+        {hasMovie && movies.length > 1 && (
+          <span className="cdp-dot-count">{movies.length}</span>
+        )}
+      </div>
     );
   };
 
@@ -168,6 +265,8 @@ export default function CustomDatePicker({ value, onChange, token, disabled }: C
     e.stopPropagation();
     onChange('');
   }, [onChange]);
+
+  const hoveredMovies = hoveredDate ? globalMoviesByDate.get(hoveredDate) : null;
 
   return (
     <>
@@ -198,7 +297,6 @@ export default function CustomDatePicker({ value, onChange, token, disabled }: C
           className="cdp-dropdown"
           style={{ top: dropdownPos.top, left: dropdownPos.left }}
         >
-          {/* key={version} força o Calendar a re-montar quando os dados mudam */}
           <Calendar
             key={version}
             className="cdp-calendar"
@@ -222,6 +320,10 @@ export default function CustomDatePicker({ value, onChange, token, disabled }: C
           </div>
         </div>,
         document.body
+      )}
+
+      {hoveredDate && hoveredMovies && hoveredMovies.length > 0 && hoveredTileEl && (
+        <DayTooltip movies={hoveredMovies} tileEl={hoveredTileEl} />
       )}
     </>
   );
