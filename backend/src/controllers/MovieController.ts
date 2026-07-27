@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
 import { prisma } from '../prisma';
+import { GoogleGenAI } from '@google/genai';
 
 async function sendPushToFollowers(streamerName: string, title: string, message: string, extraData: any = {}) {
   if (!process.env.ONESIGNAL_APP_ID || !process.env.ONESIGNAL_REST_API_KEY) return;
@@ -37,7 +38,39 @@ async function sendPushToFollowers(streamerName: string, title: string, message:
   }
 }
 
+// ============================================================
+// SISTEMA DE BUSCA INTELIGENTE
+// ============================================================
+
+// Função auxiliar para normalizar a query de busca
+function normalizeQuery(query: string): string {
+  return query
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/^(o |a |os |as |um |uma |uns |umas |the |an? )/i, '')
+    .trim();
+}
+
+// Extrai filmes de resultados do /search/multi
+function extractMoviesFromMultiResults(results: any[]): any[] {
+  const movies: any[] = [];
+  for (const item of results) {
+    if (item.media_type === 'movie') {
+      movies.push(item);
+    } else if (item.media_type === 'person' && Array.isArray(item.known_for)) {
+      for (const work of item.known_for) {
+        if (work.media_type === 'movie') {
+          movies.push(work);
+        }
+      }
+    }
+  }
+  return movies;
+}
+
 export class MovieController {
+
   async search(req: Request, res: Response): Promise<Response | any> {
     const { query, page = 1, genre } = req.query;
 
@@ -52,7 +85,6 @@ export class MovieController {
 
     try {
       if (!query && genre) {
-        // Se tem só gênero, usamos o discover
         const response = await axios.get(`https://api.themoviedb.org/3/discover/movie`, {
           params: {
             with_genres: genre,
@@ -65,33 +97,81 @@ export class MovieController {
         return res.json(response.data.results);
       }
 
-      // Busca original em Português
+      const rawQuery = query as string;
+      const normalizedQuery = normalizeQuery(rawQuery);
+
+      // ------ PASSO 1: Busca normal no TMDB ------
       const searchPromises = [
-        axios.get(`https://api.themoviedb.org/3/search/movie`, {
-          params: { query: query as string, language: 'pt-BR', page },
+        axios.get(`https://api.themoviedb.org/3/search/multi`, {
+          params: { query: rawQuery, language: 'pt-BR', page, include_adult: false },
+          headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
+        }),
+        axios.get(`https://api.themoviedb.org/3/search/multi`, {
+          params: { query: rawQuery, language: 'en-US', page, include_adult: false },
           headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
         })
       ];
 
-      // Busca Bilíngue: Faz a mesma busca forçando o idioma original/inglês
-      searchPromises.push(
-        axios.get(`https://api.themoviedb.org/3/search/movie`, {
-          params: { query: query as string, language: 'en-US', page },
-          headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
-        })
-      );
+      if (normalizedQuery.toLowerCase() !== rawQuery.toLowerCase().trim()) {
+        searchPromises.push(
+          axios.get(`https://api.themoviedb.org/3/search/multi`, {
+            params: { query: normalizedQuery, language: 'pt-BR', page, include_adult: false },
+            headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
+          })
+        );
+      }
 
       const responses = await Promise.all(searchPromises);
 
       let results: any[] = [];
-      // Juntamos os resultados de todas as buscas (a original vem primeiro)
       for (const response of responses) {
-        for (const item of response.data.results) {
-          results.push(item);
+        const movies = extractMoviesFromMultiResults(response.data.results);
+        results.push(...movies);
+      }
+
+      // ------ PASSO 2: Auto-correção com Google Gemini AI ------
+      // Se a busca normal retornou poucos resultados, pedimos para a IA corrigir o nome
+      if (results.length < 15 && page == 1 && process.env.GEMINI_API_KEY) {
+        try {
+          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          
+          const prompt = `Você é um corretor de nomes de filmes.
+O usuário digitou: "${rawQuery}"
+Descubra qual é o filme, ator ou série que o usuário quis dizer.
+Responda APENAS com o nome correto. Sem pontos, sem aspas, sem texto adicional. Retorne apenas a palavra base da franquia caso seja um filme com subtítulo (ex: "Vingadores: Ultimato" -> "Vingadores"). Se já estiver correto ou você não souber, devolva exatamente a mesma palavra.`;
+
+          const aiResponse = await ai.models.generateContent({
+            model: 'gemini-flash-latest',
+            contents: prompt,
+          });
+
+          const correctedTitle = aiResponse.text?.trim();
+
+          if (correctedTitle && correctedTitle.toLowerCase() !== rawQuery.toLowerCase()) {
+            console.log(`[SmartSearch AI] Corrigindo "${rawQuery}" → "${correctedTitle}"`);
+
+            const correctedResponses = await Promise.all([
+              axios.get(`https://api.themoviedb.org/3/search/multi`, {
+                params: { query: correctedTitle, language: 'pt-BR', page, include_adult: false },
+                headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
+              }),
+              axios.get(`https://api.themoviedb.org/3/search/multi`, {
+                params: { query: correctedTitle, language: 'en-US', page, include_adult: false },
+                headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
+              })
+            ]);
+
+            for (const response of correctedResponses) {
+              const movies = extractMoviesFromMultiResults(response.data.results);
+              results.push(...movies);
+            }
+          }
+        } catch (aiError) {
+          console.error('[SmartSearch AI] Erro ao consultar o Gemini:', aiError);
         }
       }
 
-      // Remove duplicatas mantendo a ordem de relevância (a primeira aparição é a que fica)
+      // Remove duplicatas mantendo a ordem de relevância
       const uniqueResults = [];
       const ids = new Set();
       for (const movie of results) {
@@ -283,7 +363,7 @@ export class MovieController {
     try {
       if (page) {
         const pageNum = parseInt(page as string, 10);
-        const limitNum = parseInt((limit as string) || '35', 10);
+        const limitNum = Math.min(parseInt((limit as string) || '35', 10), 100);
         const skip = (pageNum - 1) * limitNum;
 
         const where: any = { userId };
@@ -357,7 +437,7 @@ export class MovieController {
 
         // Run all queries in parallel for page 1
         if (pageNum === 1) {
-          const [movies, total, totalMovies, watchedMovies, allFilterData] = await prisma.$transaction([
+          let [movies, total, totalMovies, watchedMovies, allFilterData] = await prisma.$transaction([
             prisma.movie.findMany({ where, orderBy, skip, take: limitNum, select: movieSelect }),
             prisma.movie.count({ where }),
             prisma.movie.count({ where: { userId } }),
@@ -367,6 +447,44 @@ export class MovieController {
               select: { watchDate: true, genre: true }
             })
           ]);
+
+          // --- Início: Smart Search (Correção de Busca) para "Meus Filmes" ---
+          if (total === 0 && search && process.env.GEMINI_API_KEY) {
+            try {
+              const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+              const prompt = `Você é um corretor. O usuário procurou na própria lista de filmes salvos por: "${search}"
+Adivinhe qual filme, série, ator ou apelido ele tentou digitar. Responda APENAS com o nome corrigido. Sem aspas ou pontuações.`;
+              
+              const aiResponse = await ai.models.generateContent({
+                model: 'gemini-flash-latest',
+                contents: prompt,
+              });
+              
+              const correctedTitle = aiResponse.text?.trim();
+              
+              if (correctedTitle && correctedTitle.toLowerCase() !== (search as string).toLowerCase()) {
+                console.log(`[SmartSearch Local] Corrigindo "${search}" → "${correctedTitle}"`);
+                
+                // Atualiza a query do Prisma com o novo termo
+                where.OR = [
+                  { title: { contains: correctedTitle, mode: 'insensitive' } },
+                  { requestedBy: { contains: correctedTitle, mode: 'insensitive' } }
+                ];
+                
+                // Refaz APENAS a busca e a contagem (stats já temos)
+                const [newMovies, newTotal] = await prisma.$transaction([
+                  prisma.movie.findMany({ where, orderBy, skip, take: limitNum, select: movieSelect }),
+                  prisma.movie.count({ where })
+                ]);
+                
+                movies = newMovies;
+                total = newTotal;
+              }
+            } catch (e) {
+              console.error('[SmartSearch Local] Erro no Gemini:', e);
+            }
+          }
+          // --- Fim: Smart Search ---
 
           const uniqueMonths = Array.from(new Set(allFilterData.map(m => m.watchDate ? m.watchDate.toISOString().substring(0, 7) : 'none')));
           

@@ -192,12 +192,12 @@ export default function SavedMovies({ token, streamerMode, user }: SavedMoviesPr
     return Array.from(users).filter(u => u && u.toLowerCase() !== 'ninguém').sort((a, b) => a.localeCompare(b));
   }, [savedMovies]);
   const [selectedMovieDetails, setSelectedMovieDetails] = useState<any | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => new Date().toISOString().substring(0, 7));
+  const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [isGenreOpen, setIsGenreOpen] = useState(false);
   const [isMonthOpen, setIsMonthOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'WATCHED' | 'UNWATCHED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'WATCHED' | 'UNWATCHED'>('UNWATCHED');
 
   const genreDropdownRef = React.useRef<HTMLDivElement>(null);
   const monthDropdownRef = React.useRef<HTMLDivElement>(null);

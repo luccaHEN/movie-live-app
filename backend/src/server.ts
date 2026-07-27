@@ -42,4 +42,4 @@ server.listen(PORT, async () => {
   
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log('📦 Conectado ao banco de dados com sucesso!');
-});
+});

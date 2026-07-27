@@ -17,7 +17,7 @@ export function initSocket(server: http.Server, allowedOrigins: string[]) {
     const token = socket.handshake.auth.token;
     if (token) {
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || '123456789') as { id: number };
+        const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { id: number };
         // Coloca o usuário em uma "sala" única dele
         socket.join(`user_${decoded.id}`);
         console.log(`🔌 Usuário ${decoded.id} conectou via WebSocket`);

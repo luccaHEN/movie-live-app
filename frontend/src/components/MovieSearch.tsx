@@ -373,7 +373,7 @@ export default function MovieSearch({ token, streamerMode }: MovieSearchProps) {
         <input 
           type="text" 
           className="premium-search-input"
-          placeholder="Ex: Batman, Interestelar, Matrix..." 
+          placeholder="Busque por filme, ator ou diretor..." 
           value={searchQuery} 
           onChange={e => setSearchQuery(e.target.value)} 
         />
