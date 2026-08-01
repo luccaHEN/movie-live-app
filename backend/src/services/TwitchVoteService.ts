@@ -9,6 +9,7 @@ interface VoteSession {
   client: tmi.Client;
   startedAt: Date;
   timeout: NodeJS.Timeout;
+  warningTimeout: NodeJS.Timeout;
 }
 
 // Map of userId -> active VoteSession
@@ -56,6 +57,15 @@ export async function startVoting(userId: number, movieId: number, twitchChannel
     // Cada espectador só pode votar uma vez (o último voto prevalece)
     votes.set(username, rating);
 
+    // Reações divertidas do Bot (com 30% de chance para não floodar o chat caso seja muito movimentado)
+    if (process.env.TWITCH_BOT_USERNAME && Math.random() < 0.3) {
+      if (rating === 10) {
+        client.action(channel, `🔥 @${username} cravou nota máxima! Achou uma obra-prima!`);
+      } else if (rating <= 2) {
+        client.action(channel, `🗑️ Vish... @${username} mandou um ${rating}. Passou longe de ser bom!`);
+      }
+    }
+
     // Avisa o frontend instantaneamente!
     try {
       const io = getIO();
@@ -74,7 +84,7 @@ export async function startVoting(userId: number, movieId: number, twitchChannel
     if (process.env.TWITCH_BOT_USERNAME) {
       const movie = await prisma.movie.findUnique({ where: { id: movieId } });
       const movieTitle = movie ? movie.title : 'o filme';
-      client.action(twitchChannel, `📣 Votação aberta para: ${movieTitle.toUpperCase()}! Digite !nota seguido de um número (ex: !nota 8.5) para votar.`);
+      client.action(twitchChannel, `📣 Votação aberta para: ${movieTitle.toUpperCase()}! Digite !nota seguido de um número (ex: !nota 8) para votar.`);
     }
   } catch (err) {
     return { success: false, error: 'Não foi possível conectar ao canal da Twitch. Verifique o nome do canal.' };
@@ -97,13 +107,21 @@ export async function startVoting(userId: number, movieId: number, twitchChannel
     } catch(e) {}
   }, 3 * 60 * 1000);
 
+  // Aviso de 30 segundos finais (Aos 2 minutos e 30 segundos)
+  const warningTimeout = setTimeout(() => {
+    if (process.env.TWITCH_BOT_USERNAME) {
+      client.action(twitchChannel, `⏰ Atenção chat! A votação fecha em 30 segundos! Mande sua !nota agora!`);
+    }
+  }, 2.5 * 60 * 1000);
+
   activeSessions.set(userId, {
     movieId,
     channel: twitchChannel,
     votes,
     client,
     startedAt: new Date(),
-    timeout
+    timeout,
+    warningTimeout
   });
 
   return { success: true };
@@ -115,8 +133,9 @@ export async function stopVoting(userId: number): Promise<{ success: boolean; av
     return { success: false, average: null, totalVotes: 0, error: 'Nenhuma votação ativa encontrada.' };
   }
 
-  // Cancela o timeout de segurança
+  // Cancela os timeouts de segurança e aviso
   clearTimeout(session.timeout);
+  clearTimeout(session.warningTimeout);
 
   // Calcula a nota mais votada (Moda) em vez da média
   const voteValues = Array.from(session.votes.values());

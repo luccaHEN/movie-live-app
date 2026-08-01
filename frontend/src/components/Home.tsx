@@ -118,7 +118,7 @@ export default function Home({ token, streamerMode, stats, setShowBestMoviesModa
     .slice(0, 5);
 
   const terrorDaSemana = movies
-    .filter(m => m.watchDate && String(m.watchDate).split('T')[0] >= today && !m.watched && new Date(m.watchDate).getUTCDay() === 5 && (m.genre?.toLowerCase().includes('terror') || m.genre?.toLowerCase().includes('horror')))
+    .filter(m => m.watchDate && String(m.watchDate).split('T')[0] >= today && !m.watched && new Date(m.watchDate).getUTCDay() === 6 && (m.genre?.toLowerCase().includes('terror') || m.genre?.toLowerCase().includes('horror')))
     .sort((a, b) => new Date(a.watchDate).getTime() - new Date(b.watchDate).getTime())[0];
 
   const bannerSlides: any[] = [...highlightMovies.map(m => ({ type: 'movie', data: m }))];
@@ -413,7 +413,7 @@ export default function Home({ token, streamerMode, stats, setShowBestMoviesModa
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <span style={{ backgroundColor: 'rgba(220,38,38,0.15)', border: '1px solid #dc2626', color: '#f87171', padding: '6px 18px', borderRadius: '30px', fontWeight: 'bold', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '2px', alignSelf: 'flex-start' }}>🩸 Sexta do Terror</span>
+                      <span style={{ backgroundColor: 'rgba(220,38,38,0.15)', border: '1px solid #dc2626', color: '#f87171', padding: '6px 18px', borderRadius: '30px', fontWeight: 'bold', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '2px', alignSelf: 'flex-start' }}>🩸 Sábado do Terror</span>
                       <h2 style={{ fontSize: '1.4rem', color: '#fca5a5', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Prepare os Nervos</h2>
                       <h1 style={{ fontSize: '2.8rem', color: '#fff', margin: 0, fontWeight: 'bold', textShadow: '0 5px 20px rgba(0,0,0,0.5)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {currentHighlight.data.title}
