@@ -6,7 +6,7 @@ export class VoteController {
   // POST /votes/start - body: { movieId, twitchChannel }
   async start(req: Request, res: Response): Promise<Response | any> {
     const userId = (req as any).userId;
-    const { movieId, twitchChannel } = req.body;
+    const { movieId, twitchChannel, durationMinutes = 3 } = req.body;
 
     if (!movieId || !twitchChannel) {
       return res.status(400).json({ error: 'movieId e twitchChannel são obrigatórios.' });
@@ -18,7 +18,7 @@ export class VoteController {
       return res.status(404).json({ error: 'Filme não encontrado.' });
     }
 
-    const result = await startVoting(userId, movieId, twitchChannel.replace('@', '').trim().toLowerCase());
+    const result = await startVoting(userId, movieId, twitchChannel.replace('@', '').trim().toLowerCase(), durationMinutes);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }

@@ -19,9 +19,11 @@ export default function TwitchVotePanel({ movieId, movieTitle, token, twitchChan
   const [isVoting, setIsVoting] = useState(false);
   const [voteCount, setVoteCount] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [durationMinutes, setDurationMinutes] = useState(3);
   const [liveVotes, setLiveVotes] = useState<Record<string, number>>({});
   const [result, setResult] = useState<{ average: number; totalVotes: number; votes: Record<string, number> } | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startTimeRef = useRef<number | null>(null);
 
   // Injeta a animação de pulse no documento
   useEffect(() => {
@@ -58,7 +60,11 @@ export default function TwitchVotePanel({ movieId, movieTitle, token, twitchChan
             setVoteCount(res.data.totalVotes || 0);
             if (res.data.startedAt) {
                const started = new Date(res.data.startedAt).getTime();
+               startTimeRef.current = started;
                setElapsedSeconds(Math.floor((Date.now() - started) / 1000));
+            }
+            if (res.data.durationMinutes) {
+               setDurationMinutes(res.data.durationMinutes);
             }
             if (res.data.votes) {
                setLiveVotes(res.data.votes);
@@ -113,7 +119,11 @@ export default function TwitchVotePanel({ movieId, movieTitle, token, twitchChan
       });
 
       timerRef.current = setInterval(() => {
-        setElapsedSeconds(prev => prev + 1);
+        if (startTimeRef.current) {
+          setElapsedSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000));
+        } else {
+          setElapsedSeconds(prev => prev + 1);
+        }
       }, 1000);
     }
 
@@ -129,7 +139,7 @@ export default function TwitchVotePanel({ movieId, movieTitle, token, twitchChan
       return;
     }
     try {
-      await api.post('/votes/start', { movieId, twitchChannel }, {
+      await api.post('/votes/start', { movieId, twitchChannel, durationMinutes }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setIsVoting(true);
@@ -137,6 +147,7 @@ export default function TwitchVotePanel({ movieId, movieTitle, token, twitchChan
       setVoteCount(0);
       setLiveVotes({});
       setResult(null);
+      startTimeRef.current = Date.now();
       toast.success('Votação iniciada no chat!');
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Erro ao iniciar votação');
@@ -212,6 +223,19 @@ export default function TwitchVotePanel({ movieId, movieTitle, token, twitchChan
                   <strong style={{ color: '#9146ff' }}>{twitchChannel}</strong>
                 </div>
                 <p style={{ margin: 0, color: '#888', fontSize: '0.8rem', lineHeight: '1.4' }}>O chat poderá votar digitando <strong style={{ color: '#ccc' }}>!nota X (valores de 0 a 10).</strong></p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '8px' }}>
+                  <label style={{ fontSize: '0.9rem', color: '#ccc' }}>Duração:</label>
+                  <select 
+                    value={durationMinutes} 
+                    onChange={e => setDurationMinutes(Number(e.target.value))}
+                    style={{ background: '#333', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '5px' }}
+                  >
+                    <option value={1}>1 Minuto</option>
+                    <option value={2}>2 Minutos</option>
+                    <option value={3}>3 Minutos</option>
+                    <option value={5}>5 Minutos</option>
+                  </select>
+                </div>
                 <button
                   onClick={handleStartVote}
                   style={{
@@ -239,7 +263,7 @@ export default function TwitchVotePanel({ movieId, movieTitle, token, twitchChan
               <div style={{ 
                 height: '100%', 
                 background: 'linear-gradient(90deg, #ef4444, #9146ff)', 
-                width: `${Math.max(0, (180 - elapsedSeconds) / 180 * 100)}%`,
+                width: `${Math.max(0, ((durationMinutes * 60) - elapsedSeconds) / (durationMinutes * 60) * 100)}%`,
                 transition: 'width 1s linear'
               }}></div>
             </div>
@@ -272,7 +296,7 @@ export default function TwitchVotePanel({ movieId, movieTitle, token, twitchChan
               style={{ width: '100%', padding: '12px', fontSize: '1rem', marginTop: '5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
               <span>Encerrar Manualmente</span>
-              <span style={{ fontFamily: 'monospace', fontSize: '1.1rem' }}>{formatTime(Math.max(0, 180 - elapsedSeconds))}</span>
+              <span style={{ fontFamily: 'monospace', fontSize: '1.1rem' }}>{formatTime(Math.max(0, (durationMinutes * 60) - elapsedSeconds))}</span>
             </button>
           </div>
         )}

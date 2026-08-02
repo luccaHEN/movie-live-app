@@ -9,13 +9,14 @@ interface VoteSession {
   client: tmi.Client;
   startedAt: Date;
   timeout: NodeJS.Timeout;
-  warningTimeout: NodeJS.Timeout;
+  warningTimeout: NodeJS.Timeout | null;
+  durationMinutes: number;
 }
 
 // Map of userId -> active VoteSession
 const activeSessions = new Map<number, VoteSession>();
 
-export async function startVoting(userId: number, movieId: number, twitchChannel: string): Promise<{ success: boolean; error?: string }> {
+export async function startVoting(userId: number, movieId: number, twitchChannel: string, durationMinutes: number = 3): Promise<{ success: boolean; error?: string }> {
   // Verifica se já existe uma votação ativa para este usuário
   if (activeSessions.has(userId)) {
     return { success: false, error: 'Já existe uma votação ativa. Encerre a atual primeiro.' };
@@ -57,14 +58,6 @@ export async function startVoting(userId: number, movieId: number, twitchChannel
     // Cada espectador só pode votar uma vez (o último voto prevalece)
     votes.set(username, rating);
 
-    // Reações divertidas do Bot (com 30% de chance para não floodar o chat caso seja muito movimentado)
-    if (process.env.TWITCH_BOT_USERNAME && Math.random() < 0.3) {
-      if (rating === 10) {
-        client.action(channel, `🔥 @${username} cravou nota máxima! Achou uma obra-prima!`);
-      } else if (rating <= 2) {
-        client.action(channel, `🗑️ Vish... @${username} mandou um ${rating}. Passou longe de ser bom!`);
-      }
-    }
 
     // Avisa o frontend instantaneamente!
     try {
@@ -90,7 +83,8 @@ export async function startVoting(userId: number, movieId: number, twitchChannel
     return { success: false, error: 'Não foi possível conectar ao canal da Twitch. Verifique o nome do canal.' };
   }
 
-  // Trava de segurança: Auto-encerra após 3 minutos
+  // Trava de segurança: Auto-encerra após X minutos
+  const timeoutMs = durationMinutes * 60 * 1000;
   const timeout = setTimeout(async () => {
     const result = await stopVoting(userId);
     if (result.success && result.average !== null && result.movieId) {
@@ -105,14 +99,17 @@ export async function startVoting(userId: number, movieId: number, twitchChannel
       const io = getIO();
       io.to(`user_${userId}`).emit('voteClosed', result);
     } catch(e) {}
-  }, 3 * 60 * 1000);
+  }, timeoutMs);
 
-  // Aviso de 30 segundos finais (Aos 2 minutos e 30 segundos)
-  const warningTimeout = setTimeout(() => {
-    if (process.env.TWITCH_BOT_USERNAME) {
-      client.action(twitchChannel, `⏰ Atenção chat! A votação fecha em 30 segundos! Mande sua !nota agora!`);
-    }
-  }, 2.5 * 60 * 1000);
+  // Aviso de 30 segundos finais
+  let warningTimeout: NodeJS.Timeout | null = null;
+  if (timeoutMs > 30000) {
+    warningTimeout = setTimeout(() => {
+      if (process.env.TWITCH_BOT_USERNAME) {
+        client.action(twitchChannel, `⏰ Atenção chat! A votação fecha em 30 segundos! Mande sua !nota agora!`);
+      }
+    }, timeoutMs - 30000);
+  }
 
   activeSessions.set(userId, {
     movieId,
@@ -121,7 +118,8 @@ export async function startVoting(userId: number, movieId: number, twitchChannel
     client,
     startedAt: new Date(),
     timeout,
-    warningTimeout
+    warningTimeout,
+    durationMinutes
   });
 
   return { success: true };
@@ -135,7 +133,7 @@ export async function stopVoting(userId: number): Promise<{ success: boolean; av
 
   // Cancela os timeouts de segurança e aviso
   clearTimeout(session.timeout);
-  clearTimeout(session.warningTimeout);
+  if (session.warningTimeout) clearTimeout(session.warningTimeout);
 
   // Calcula a nota mais votada (Moda) em vez da média
   const voteValues = Array.from(session.votes.values());
@@ -191,7 +189,7 @@ export async function stopVoting(userId: number): Promise<{ success: boolean; av
   return { success: true, average, totalVotes, votes: votesObj, movieId };
 }
 
-export function getVotingStatus(userId: number): { active: boolean; movieId?: number; channel?: string; totalVotes?: number; startedAt?: Date; votes?: Record<string, number> } {
+export function getVotingStatus(userId: number): { active: boolean; movieId?: number; channel?: string; totalVotes?: number; startedAt?: Date; durationMinutes?: number; votes?: Record<string, number> } {
   const session = activeSessions.get(userId);
   if (!session) {
     return { active: false };
@@ -206,6 +204,7 @@ export function getVotingStatus(userId: number): { active: boolean; movieId?: nu
     channel: session.channel,
     totalVotes: session.votes.size,
     startedAt: session.startedAt,
+    durationMinutes: session.durationMinutes,
     votes: votesObj
   };
 }
