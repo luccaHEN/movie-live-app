@@ -1161,3 +1161,406 @@ html {
 .cdp-tooltip-status--pending {
   color: #f59e0b;
 }
+
+/* --- Platinum Profile Styles --- */
+:root {
+  --platinum-color: #e5e4e2;
+  --platinum-glow: rgba(229, 228, 226, 0.4);
+  --platinum-bg: rgba(229, 228, 226, 0.08);
+}
+
+.platinum-profile {
+  position: relative;
+  border: 2px solid var(--platinum-color) !important;
+  box-shadow: 0 0 20px var(--platinum-glow), inset 0 0 15px var(--platinum-glow) !important;
+  background: linear-gradient(135deg, var(--card-bg) 0%, var(--platinum-bg) 100%) !important;
+  overflow: hidden;
+  animation: border-pulse 3s infinite alternate;
+}
+
+.platinum-profile::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    transparent, 
+    var(--platinum-color), 
+    transparent 30%
+  );
+  animation: rotate 6s linear infinite;
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.platinum-badge {
+  display: inline-block;
+  background: linear-gradient(90deg, #d4af37, #f3e5ab, #d4af37);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  font-weight: 800;
+  letter-spacing: 2px;
+  font-size: 0.9rem;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  margin-bottom: 15px;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+  animation: shine 2s infinite linear;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes border-pulse {
+  0% { box-shadow: 0 0 10px var(--platinum-glow), inset 0 0 5px var(--platinum-glow); }
+  100% { box-shadow: 0 0 30px var(--platinum-glow), inset 0 0 20px var(--platinum-glow); }
+}
+
+@keyframes rotate {
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes shine {
+  0% { background-position: -100px; }
+  100% { background-position: 200px; }
+}
+
+.platinum-particles-bg {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: 
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.4) 1px, transparent 1px),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.6) 2px, transparent 2px),
+    radial-gradient(circle at 50% 80%, rgba(255, 255, 255, 0.5) 1.5px, transparent 1.5px),
+    radial-gradient(circle at 10% 90%, rgba(255, 255, 255, 0.3) 1px, transparent 1px),
+    radial-gradient(circle at 90% 70%, rgba(255, 255, 255, 0.5) 2px, transparent 2px),
+    radial-gradient(circle at 40% 40%, rgba(135, 206, 250, 0.4) 2px, transparent 2px),
+    radial-gradient(circle at 70% 60%, rgba(135, 206, 250, 0.3) 1px, transparent 1px);
+  background-size: 100px 100px;
+  animation: cdpTooltipIn 0.18s ease-out;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+@keyframes cdpTooltipIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cdp-tooltip-header {
+  padding: 8px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #a0a0b0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  letter-spacing: 0.02em;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.cdp-tooltip-list {
+  padding: 6px 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.cdp-tooltip-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cdp-tooltip-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cdp-tooltip-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.cdp-tooltip-movie {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  transition: background 0.15s;
+}
+
+.cdp-tooltip-poster {
+  width: 28px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.cdp-tooltip-poster-placeholder {
+  width: 28px;
+  height: 40px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.cdp-tooltip-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cdp-tooltip-title {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #e8e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.cdp-tooltip-requested {
+  font-size: 0.65rem;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cdp-tooltip-status {
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.cdp-tooltip-status--watched {
+  color: #10b981;
+}
+
+.cdp-tooltip-status--pending {
+  color: #f59e0b;
+}
+
+/* --- Platinum Profile Styles --- */
+:root {
+  --platinum-color: #e5e4e2;
+  --platinum-glow: rgba(229, 228, 226, 0.4);
+  --platinum-bg: rgba(229, 228, 226, 0.08);
+}
+
+.platinum-profile {
+  position: relative;
+  border: 2px solid var(--platinum-color) !important;
+  box-shadow: 0 0 20px var(--platinum-glow), inset 0 0 15px var(--platinum-glow) !important;
+  background: linear-gradient(135deg, var(--card-bg) 0%, var(--platinum-bg) 100%) !important;
+  overflow: hidden;
+  animation: border-pulse 3s infinite alternate;
+}
+
+.platinum-profile::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    transparent, 
+    var(--platinum-color), 
+    transparent 30%
+  );
+  animation: rotate 6s linear infinite;
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.platinum-badge {
+  display: inline-block;
+  background: linear-gradient(90deg, #d4af37, #f3e5ab, #d4af37);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  font-weight: 800;
+  letter-spacing: 2px;
+  font-size: 0.9rem;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  margin-bottom: 15px;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+  animation: shine 2s infinite linear;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes border-pulse {
+  0% { box-shadow: 0 0 10px var(--platinum-glow), inset 0 0 5px var(--platinum-glow); }
+  100% { box-shadow: 0 0 30px var(--platinum-glow), inset 0 0 20px var(--platinum-glow); }
+}
+
+@keyframes rotate {
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes shine {
+  0% { background-position: -100px; }
+  100% { background-position: 200px; }
+}
+
+@keyframes falling-particles {
+  0% { transform: translateY(-100px); }
+  100% { transform: translateY(100px); }
+}
+
+.platinum-particles-bg {
+  position: fixed; /* Changed from absolute to fixed to cover the whole page */
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: 
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.4) 1px, transparent 1px),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.6) 2px, transparent 2px),
+    radial-gradient(circle at 50% 80%, rgba(255, 255, 255, 0.5) 1.5px, transparent 1.5px),
+    radial-gradient(circle at 10% 90%, rgba(255, 255, 255, 0.3) 1px, transparent 1px),
+    radial-gradient(circle at 90% 70%, rgba(255, 255, 255, 0.5) 2px, transparent 2px),
+    radial-gradient(circle at 40% 40%, rgba(135, 206, 250, 0.4) 2px, transparent 2px),
+    radial-gradient(circle at 70% 60%, rgba(135, 206, 250, 0.3) 1px, transparent 1px);
+  background-size: 100px 100px;
+  animation: falling-particles 20s linear infinite;
+  opacity: 0.6;
+  z-index: 9998; /* High z-index but behind the profile */
+  pointer-events: none;
+}
+
+.platinum-page-glow {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  box-shadow: inset 0 0 150px rgba(135, 206, 250, 0.15), inset 0 0 50px rgba(229, 228, 226, 0.2);
+  pointer-events: none;
+  z-index: 9997;
+  animation: page-pulse 4s infinite alternate;
+}
+
+@keyframes page-pulse {
+  0% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+.platinum-celebration-container {
+  background: radial-gradient(circle at center, rgba(135, 206, 250, 0.1) 0%, transparent 60%);
+}
+
+.platinum-viewer {
+  position: relative;
+  overflow: hidden;
+  border: 2px solid var(--platinum-color) !important;
+  background: linear-gradient(135deg, rgba(229, 228, 226, 0.05) 0%, rgba(229, 228, 226, 0.15) 100%) !important;
+  box-shadow: 0 0 15px var(--platinum-glow), inset 0 0 10px var(--platinum-glow) !important;
+  animation: border-pulse 3s infinite alternate;
+}
+
+.platinum-viewer::before {
+  content: '';
+  position: absolute;
+  top: -100%; left: 0; right: 0; bottom: -100%;
+  background-image: 
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.5) 1px, transparent 1px),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.7) 2px, transparent 2px),
+    radial-gradient(circle at 50% 80%, rgba(255, 255, 255, 0.6) 1.5px, transparent 1.5px),
+    radial-gradient(circle at 10% 90%, rgba(255, 255, 255, 0.4) 1px, transparent 1px),
+    radial-gradient(circle at 90% 70%, rgba(255, 255, 255, 0.6) 2px, transparent 2px);
+  background-size: 60px 60px;
+  animation: falling-stars-viewer 10s linear infinite;
+  opacity: 0.9;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.platinum-viewer > div {
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 0 10px rgba(229, 228, 226, 0.8);
+}
+
+@keyframes falling-stars-viewer {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(60px); }
+}
+
+.platinum-neon-heading {
+  color: #fff !important;
+  text-shadow: 0 0 10px var(--platinum-glow), 0 0 20px var(--platinum-glow) !important;
+}
+
+.platinum-neon-heading::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--platinum-color);
+  box-shadow: 0 0 10px 2px var(--platinum-glow);
+}
+
+.platinum-neon-card {
+  border: 1px solid rgba(229, 228, 226, 0.4) !important;
+  background: var(--platinum-bg) !important;
+  box-shadow: 0 0 15px rgba(229, 228, 226, 0.15), inset 0 0 10px rgba(229, 228, 226, 0.05) !important;
+  backdrop-filter: blur(5px);
+  position: relative;
+  z-index: 2;
+  transition: all 0.3s ease;
+}
+
+.platinum-neon-card:hover {
+  border-color: rgba(229, 228, 226, 0.8) !important;
+  box-shadow: 0 0 25px rgba(229, 228, 226, 0.3), inset 0 0 15px rgba(229, 228, 226, 0.1) !important;
+  transform: translateY(-2px);
+}
+
+.platinum-shield-emblem {
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.platinum-shield-emblem:hover {
+  transform: scale(1.08) translateY(-5px);
+  box-shadow: 0 0 60px rgba(229, 228, 226, 0.9), inset 0 0 30px rgba(255, 255, 255, 1) !important;
+  cursor: default;
+}
+
+.platinum-poster-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -150%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
+  transform: skewX(-25deg);
+  animation: shimmer-sweep 3s infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer-sweep {
+  0% { left: -150%; }
+  50% { left: 200%; }
+  100% { left: 200%; }
+}

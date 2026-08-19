@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronDown, Trophy, Crown, Star, Award } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import api from '../services/api';
 import Modal from './Modal';
@@ -205,11 +205,18 @@ export default function PublicList() {
 
   const topRescuers = Object.entries(rescuerStats)
     .filter(([name, _stats]) => name.toLowerCase() !== 'chat' && name.toLowerCase() !== 'sumas')
-    .map(([name, stats]) => ({
-      name,
-      totalRescues: stats.totalRescues,
-      avgRating: stats.ratedCount > 0 ? (stats.ratingSum / stats.ratedCount).toFixed(1) : 'N/A',
-    }))
+    .map(([name, stats]) => {
+      let badgeCount = 0;
+      ALL_BADGES.forEach(badge => {
+        if (badge.condition(stats as any)) badgeCount++;
+      });
+      return {
+        name,
+        totalRescues: stats.totalRescues,
+        avgRating: stats.ratedCount > 0 ? (stats.ratingSum / stats.ratedCount).toFixed(1) : 'N/A',
+        isPlatinum: badgeCount === ALL_BADGES.length && ALL_BADGES.length > 0
+      };
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const filteredRescuers = topRescuers.filter(r => removeAccents(r.name.toLowerCase()).includes(lowerCaseQuery));
@@ -410,57 +417,119 @@ export default function PublicList() {
                 removeAccents(m.title.toLowerCase()).includes(lowerCaseQuery)
               );
 
+              const isPlatinum = badges.length === ALL_BADGES.length && ALL_BADGES.length > 0;
+
             return (
               <div style={{ width: 'calc(100% - 40px)', maxWidth: '1400px', margin: '0 auto 20px auto', boxSizing: 'border-box' }}>
                 <button onClick={() => setSelectedRescuer(null)} className="btn-secondary" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px' }}>
                   <ArrowLeft size={18} /> Voltar para listas
                 </button>
-                <div className="public-card" style={{ padding: '30px' }}>
-                  <div style={{ textAlign: 'center', marginBottom: '25px' }}>
-                    <h2 style={{ margin: '0 0 15px 0', color: 'var(--primary)', fontSize: '2.2rem' }}>Perfil de {selectedRescuer}</h2>
-                    <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '30px' }}>
-                      <div className="profile-stat-card" style={{ background: 'rgba(255,255,255,0.05)', padding: '15px 25px', borderRadius: '12px', minWidth: '120px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                        <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#fff' }}>{rescuerMovies.length}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px' }}>Resgates</div>
-                      </div>
-                      <div className="profile-stat-card" style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '15px 25px', borderRadius: '12px', minWidth: '120px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-                        <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#f59e0b' }}>{avgRating}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px' }}>Média de Nota</div>
-                      </div>
-                      <div className="profile-stat-card" style={{ background: 'rgba(139, 92, 246, 0.1)', padding: '15px 25px', borderRadius: '12px', minWidth: '120px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#8b5cf6', marginTop: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px', margin: '8px auto 0 auto' }}>{favoriteGenre}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '6px' }}>Gênero Favorito</div>
-                      </div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                        <h3 style={{ margin: 0, fontSize: '1rem', color: '#888', textTransform: 'uppercase', letterSpacing: '2px' }}>Progresso das Conquistas</h3>
-                        <span style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: 'bold' }}>{badges.length} / {ALL_BADGES.length} ({Math.round((badges.length / ALL_BADGES.length) * 100)}%)</span>
-                      </div>
-                      <div style={{ width: '100%', height: '6px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', marginBottom: '20px' }}>
-                        <div style={{ width: `${(badges.length / ALL_BADGES.length) * 100}%`, height: '100%', backgroundColor: 'var(--primary)', transition: 'width 1s ease-out' }}></div>
-                      </div>
-                        <div className="badges-grid">
-                          {ALL_BADGES.map((b: any) => {
-                            const isUnlocked = badges.some(unlockedBadge => unlockedBadge.title === b.title);
-                            const [current, total] = b.progress ? b.progress(s) : [0, 1];
-                            const tooltipContent = isUnlocked ? b.desc : `Bloqueado: ${b.desc} (${current}/${total})`;
-                            return (
-                              <div key={b.title} className="profile-badge" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: isUnlocked ? 'var(--card-bg)' : 'rgba(255,255,255,0.05)', border: isUnlocked ? '1px solid var(--primary)' : '1px solid rgba(255,255,255,0.15)', padding: '12px', borderRadius: '30px', opacity: isUnlocked ? 1 : 0.7 }}>
-                                <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: isUnlocked ? '#fff' : '#aaa', textAlign: 'center' }}>{b.title}</span>
-                                <div className="tooltip-text">{tooltipContent}</div>
-                              </div>
-                            );
-                          })}
+                <div className={`public-card ${isPlatinum ? 'platinum-profile' : ''}`} style={{ padding: '30px' }}>
+                  {isPlatinum && <div className="platinum-page-glow" />}
+                  {isPlatinum ? (
+                    <div className="platinum-celebration-container" style={{ textAlign: 'center', padding: '40px 20px', position: 'relative', overflow: 'hidden' }}>
+                      <div className="platinum-particles-bg"></div>
+                      <div className="platinum-shield-emblem" style={{ 
+                        margin: '0 auto 30px auto', 
+                        width: '200px', 
+                        height: '220px', 
+                        background: 'linear-gradient(135deg, #e5e4e2 0%, #b0c4de 50%, #8c92ac 100%)', 
+                        clipPath: 'polygon(50% 0%, 100% 20%, 100% 70%, 50% 100%, 0% 70%, 0% 20%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 0 40px rgba(229, 228, 226, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.8)',
+                        border: '4px solid #fff',
+                        position: 'relative',
+                        zIndex: 2
+                      }}>
+                        <div style={{
+                          width: '180px',
+                          height: '200px',
+                          background: 'linear-gradient(135deg, #f8f9fa 0%, #e5e4e2 100%)',
+                          clipPath: 'polygon(50% 0%, 100% 20%, 100% 70%, 50% 100%, 0% 70%, 0% 20%)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '20px',
+                          boxSizing: 'border-box'
+                        }}>
+                          <Crown size={72} color="#a0a0b0" strokeWidth={1.5} style={{ filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.8))' }} />
                         </div>
                       </div>
-                  </div>
-                  <h3 style={{ fontSize: '1.2rem', color: '#aaa', marginBottom: '20px', borderBottom: '1px solid var(--input-border)', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>🎬 Histórico de Filmes</h3>
+                      
+                      <h2 style={{ margin: '0 0 10px 0', color: '#e5e4e2', fontSize: '1.8rem', textShadow: '0 0 10px rgba(229, 228, 226, 0.8)', position: 'relative', zIndex: 2 }}>
+                        {selectedRescuer}
+                      </h2>
+
+                      <h2 style={{ margin: '0 0 20px 0', color: '#fff', fontSize: '2.2rem', textShadow: '0 0 15px rgba(229, 228, 226, 0.8)', fontWeight: '800', letterSpacing: '2px', position: 'relative', zIndex: 2 }}>
+                        PARABÉNS! VOCÊ ALCANÇOU TODAS AS CONQUISTAS
+                      </h2>
+
+                      <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '30px', position: 'relative', zIndex: 2 }}>
+                        <div className="profile-stat-card" style={{ background: 'rgba(255,255,255,0.1)', padding: '20px 30px', borderRadius: '15px', border: '1px solid rgba(229, 228, 226, 0.4)', boxShadow: '0 0 15px rgba(229, 228, 226, 0.2)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}><Trophy size={40} color="#e5e4e2" /></div>
+                          <div style={{ fontSize: '1rem', color: '#fff', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>PLATINA ALCANÇADA</div>
+                        </div>
+                        <div className="profile-stat-card" style={{ background: 'rgba(255,255,255,0.1)', padding: '20px 30px', borderRadius: '15px', border: '1px solid rgba(229, 228, 226, 0.4)', boxShadow: '0 0 15px rgba(229, 228, 226, 0.2)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}><Award size={40} color="#e5e4e2" /></div>
+                          <div style={{ fontSize: '1rem', color: '#fff', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>CONQUISTAS: {ALL_BADGES.length}/{ALL_BADGES.length}</div>
+                        </div>
+                        <div className="profile-stat-card" style={{ background: 'rgba(255,255,255,0.1)', padding: '20px 30px', borderRadius: '15px', border: '1px solid rgba(229, 228, 226, 0.4)', boxShadow: '0 0 15px rgba(229, 228, 226, 0.2)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}><Star size={40} color="#e5e4e2" /></div>
+                          <div style={{ fontSize: '1rem', color: '#fff', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>NÍVEL: MÁXIMO</div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+                      <h2 style={{ margin: '0 0 15px 0', color: 'var(--primary)', fontSize: '2.2rem' }}>Perfil de {selectedRescuer}</h2>
+                      <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '30px' }}>
+                        <div className="profile-stat-card" style={{ background: 'rgba(255,255,255,0.05)', padding: '15px 25px', borderRadius: '12px', minWidth: '120px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                          <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#fff' }}>{rescuerMovies.length}</div>
+                          <div style={{ fontSize: '0.8rem', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px' }}>Resgates</div>
+                        </div>
+                        <div className="profile-stat-card" style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '15px 25px', borderRadius: '12px', minWidth: '120px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                          <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#f59e0b' }}>{avgRating}</div>
+                          <div style={{ fontSize: '0.8rem', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px' }}>Média de Nota</div>
+                        </div>
+                        <div className="profile-stat-card" style={{ background: 'rgba(139, 92, 246, 0.1)', padding: '15px 25px', borderRadius: '12px', minWidth: '120px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#8b5cf6', marginTop: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px', margin: '8px auto 0 auto' }}>{favoriteGenre}</div>
+                          <div style={{ fontSize: '0.8rem', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '6px' }}>Gênero Favorito</div>
+                        </div>
+                      </div>
+                      <div style={{ background: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                          <h3 style={{ margin: 0, fontSize: '1rem', color: '#888', textTransform: 'uppercase', letterSpacing: '2px' }}>Progresso das Conquistas</h3>
+                          <span style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: 'bold' }}>{badges.length} / {ALL_BADGES.length} ({Math.round((badges.length / ALL_BADGES.length) * 100)}%)</span>
+                        </div>
+                        <div style={{ width: '100%', height: '6px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', marginBottom: '20px' }}>
+                          <div style={{ width: `${(badges.length / ALL_BADGES.length) * 100}%`, height: '100%', backgroundColor: 'var(--primary)', transition: 'width 1s ease-out' }}></div>
+                        </div>
+                          <div className="badges-grid">
+                            {ALL_BADGES.map((b: any) => {
+                              const isUnlocked = badges.some(unlockedBadge => unlockedBadge.title === b.title);
+                              const [current, total] = b.progress ? b.progress(s) : [0, 1];
+                              const tooltipContent = isUnlocked ? b.desc : `Bloqueado: ${b.desc} (${current}/${total})`;
+                              return (
+                                <div key={b.title} className="profile-badge" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: isUnlocked ? 'var(--card-bg)' : 'rgba(255,255,255,0.05)', border: isUnlocked ? '1px solid var(--primary)' : '1px solid rgba(255,255,255,0.15)', padding: '12px', borderRadius: '30px', opacity: isUnlocked ? 1 : 0.7 }}>
+                                  <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: isUnlocked ? '#fff' : '#aaa', textAlign: 'center' }}>{b.title}</span>
+                                  <div className="tooltip-text">{tooltipContent}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                    </div>
+                  )}
+                </div>
+                  <h3 className={isPlatinum ? 'platinum-neon-heading' : ''} style={{ fontSize: '1.2rem', color: isPlatinum ? '#fff' : '#aaa', marginBottom: '20px', borderBottom: isPlatinum ? 'none' : '1px solid var(--input-border)', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px', position: 'relative', zIndex: 2 }}>🎬 Histórico de Filmes</h3>
                   {displayedRescuerMovies.length === 0 ? <p style={{ textAlign: 'center', color: '#666' }}>Nenhum filme encontrado na busca.</p> : (
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '15px' }}>
                       {displayedRescuerMovies.map(movie => (
-                        <li key={movie.id} className="profile-movie-card" style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', backgroundColor: 'var(--bg-color)', borderRadius: '10px', border: '1px solid var(--input-border)' }}>
-                          <div>{movie.poster ? <img src={`https://image.tmdb.org/t/p/w92${movie.poster}`} alt={movie.title} style={{ width: '50px', height: '75px', objectFit: 'cover', borderRadius: '6px', opacity: movie.watched ? 0.6 : 1 }} /> : <div style={{ width: '50px', height: '75px', backgroundColor: '#2a2a35', borderRadius: '6px' }} />}</div>
+                        <li key={movie.id} className={`profile-movie-card ${isPlatinum ? 'platinum-neon-card' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', backgroundColor: isPlatinum ? 'transparent' : 'var(--bg-color)', borderRadius: '10px', border: isPlatinum ? 'none' : '1px solid var(--input-border)' }}>
+                          <div className={isPlatinum ? 'platinum-poster-wrapper' : ''} style={{ position: 'relative', overflow: 'hidden', borderRadius: '6px', width: '50px', height: '75px' }}>{movie.poster ? <img src={`https://image.tmdb.org/t/p/w92${movie.poster}`} alt={movie.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '6px', opacity: movie.watched ? 0.6 : 1, display: 'block' }} /> : <div style={{ width: '100%', height: '100%', backgroundColor: '#2a2a35', borderRadius: '6px' }} />}</div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <strong style={{ fontSize: '1.1rem', display: 'block', color: movie.watched ? '#999' : '#fff', textDecoration: movie.watched ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{movie.title}</strong>
                             <div style={{ fontSize: '0.85rem', color: '#777', marginTop: '4px' }}>{movie.watched ? (movie.watchDate ? `Assistido em ${new Date(movie.watchDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}` : 'Assistido') : (movie.watchDate ? `Fila: ${new Date(movie.watchDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}` : 'Sem data')}</div>
@@ -473,7 +542,6 @@ export default function PublicList() {
                     </ul>
                   )}
                 </div>
-              </div>
             );
           })()
         ) : (
@@ -545,10 +613,12 @@ export default function PublicList() {
                     <div 
                       key={rescuer.name} 
                       onClick={() => setSelectedRescuer(rescuer.name)}
-                      className="rating-card"
+                      className={`rating-card ${rescuer.isPlatinum ? 'platinum-viewer' : ''}`}
                       title={`Ver filmes resgatados por ${rescuer.name}`}
                     >
-                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{rescuer.name}</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: rescuer.isPlatinum ? 'inherit' : 'var(--primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {rescuer.name}
+                      </div>
                     </div>
                   ))}
                 </div>
