@@ -13,6 +13,8 @@
   --success-hover: #2c974b;
   --danger: #ef4444;
   --danger-hover: #dc2626;
+  --warning: #f59e0b;
+  --warning-hover: #d97706;
   --input-bg: rgba(255, 255, 255, 0.04);
   --input-border: rgba(255, 255, 255, 0.1);
   --glass-border: 1px solid rgba(255, 255, 255, 0.05);

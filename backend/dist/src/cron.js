@@ -54,8 +54,8 @@ function initCronJobs() {
                     app_id: appId,
                     include_player_ids: playerIds,
                     headings: { "en": "Sessão Pipoca! 🍿", "pt": "Sessão Pipoca! 🍿" },
-                    contents: { "en": `A stream de ${streamerName} vai começar! O filme de hoje é ${filme.title}!`, "pt": `A stream de ${streamerName} vai começar! O filme de hoje é ${filme.title}!` },
-                    data: { streamerName: streamerName }
+                    contents: { "en": `O filme de hoje de ${streamerName} é ${filme.title}!`, "pt": `O filme de hoje de ${streamerName} é ${filme.title}!` },
+                    data: { streamerName: streamerName, movieTitle: filme.title, isWatched: false }
                 }, { headers: { Authorization: `Basic ${apiKey}`, 'Accept': 'application/json', 'Content-Type': 'application/json' } });
                 console.log(`✅ Notificações enviadas para os seguidores de ${streamerName}`);
             }

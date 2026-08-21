@@ -6,13 +6,17 @@ const AuthController_1 = require("./controllers/AuthController");
 const MovieController_1 = require("./controllers/MovieController");
 const UserController_1 = require("./controllers/UserController");
 const CommunityController_1 = require("./controllers/CommunityController");
+const VoteController_1 = require("./controllers/VoteController");
 const auth_1 = require("./middlewares/auth");
 const prisma_1 = require("./prisma");
+const GameController_1 = require("./controllers/GameController");
 exports.routes = (0, express_1.Router)();
 const authController = new AuthController_1.AuthController();
 const movieController = new MovieController_1.MovieController();
 const userController = new UserController_1.UserController();
 const communityController = new CommunityController_1.CommunityController();
+const voteController = new VoteController_1.VoteController();
+const gameController = new GameController_1.GameController();
 // Rotas Públicas
 exports.routes.post('/login', authController.login);
 exports.routes.post('/refresh-token', authController.refreshToken);
@@ -37,6 +41,8 @@ exports.routes.get('/movies/public/:username', async (req, res) => {
                 watchDate: true,
                 requestedBy: true,
                 streamerRating: true,
+                genre: true,
+                isTrash: true,
             }
         });
         res.json(movies);
@@ -48,6 +54,16 @@ exports.routes.get('/movies/public/:username', async (req, res) => {
 });
 // Rotas Protegidas (Exigem o envio do Token no header de Autorização)
 exports.routes.use(auth_1.isAuthenticated);
+// Rotas do Jogo de Adivinhação
+exports.routes.post('/game/guess', gameController.guess);
+exports.routes.get('/game/poster', gameController.getDailyPoster);
+exports.routes.post('/game/guess-poster', gameController.guessPoster);
+exports.routes.get('/game/synopsis', gameController.getDailySynopsis);
+exports.routes.post('/game/guess-synopsis', gameController.guessSynopsis);
+// Rotas de votação Twitch
+exports.routes.post('/votes/start', voteController.start);
+exports.routes.post('/votes/stop', voteController.stop);
+exports.routes.get('/votes/status', voteController.status);
 // Rota de registro agora é protegida e só para administradores
 exports.routes.post('/register', auth_1.isAdministrator, authController.register);
 exports.routes.get('/movies/search', movieController.search);
@@ -56,10 +72,17 @@ exports.routes.get('/movies/tmdb/:id', movieController.getTmdbDetails);
 exports.routes.get('/movies/stats', movieController.stats);
 exports.routes.get('/movies', movieController.index);
 exports.routes.post('/movies', movieController.create);
+exports.routes.put('/movies/reorder', movieController.reorder);
 exports.routes.put('/movies/:id', movieController.update);
 exports.routes.delete('/movies/:id', movieController.delete);
 exports.routes.get('/profile', userController.getProfile);
 exports.routes.put('/profile', userController.updateProfile);
+exports.routes.put('/profile/twitch', async (req, res) => {
+    const userId = req.userId;
+    const { twitchChannel } = req.body;
+    await prisma_1.prisma.user.update({ where: { id: userId }, data: { twitchChannel } });
+    return res.json({ message: 'Canal da Twitch salvo!' });
+});
 // Rotas da Comunidade
 exports.routes.get('/community/streamers', communityController.getStreamers);
 exports.routes.post('/community/follow', communityController.toggleFollow);

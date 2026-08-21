@@ -9,6 +9,7 @@ import Settings from './components/Settings';
 import Dashboard from './components/Dashboard';
 import RegisterUser from './components/RegisterUser';
 import PublicList from './components/PublicList';
+import GuessMovie from './components/GuessMovie';
 import toast, { Toaster } from 'react-hot-toast';
 import Modal from './components/Modal';
 import Sidebar from './components/Sidebar';
@@ -17,7 +18,7 @@ import { Star, Crown, X, Trophy } from 'lucide-react';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
-  const [view, setView] = useState<'home' | 'search' | 'saved' | 'dashboard' | 'settings' | 'register'>('home');
+  const [view, setView] = useState<'home' | 'search' | 'saved' | 'guess' | 'dashboard' | 'settings' | 'register'>('home');
   const [user, setUser] = useState<any>(null);
   const [streamerMode, setStreamerMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('streamerMode');
@@ -94,6 +95,7 @@ export default function App() {
           {view === 'home' && <Home token={token} streamerMode={streamerMode} stats={stats} setShowBestMoviesModal={setShowBestMoviesModal} setShowTopRescuersModal={setShowTopRescuersModal} />}
           {view === 'search' && <MovieSearch token={token} streamerMode={streamerMode} />}
           {view === 'saved' && <SavedMovies token={token} streamerMode={streamerMode} user={user} />}
+          {view === 'guess' && <GuessMovie token={token} />}
           {view === 'dashboard' && <Dashboard token={token} username={user?.name} streamerMode={streamerMode} user={user} />}
           {view === 'settings' && <Settings token={token} user={user} setUser={setUser} streamerMode={streamerMode} setStreamerMode={setStreamerMode} />}
           {view === 'register' && <RegisterUser token={token} />}

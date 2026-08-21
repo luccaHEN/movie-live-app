@@ -9,6 +9,8 @@ const cors_1 = __importDefault(require("cors"));
 const prisma_1 = require("./prisma");
 const routes_1 = require("./routes");
 const cron_1 = require("./cron");
+const http_1 = __importDefault(require("http"));
+const socket_1 = require("./socket");
 const app = (0, express_1.default)();
 // Bloqueia acessos de outros sites, permitindo apenas o seu Frontend (Vercel) e o localhost (seu PC)
 const allowedOrigins = [
@@ -26,7 +28,9 @@ app.get('/', (req, res) => {
 // Importa as demais rotas (protegidas e desprotegidas)
 app.use(routes_1.routes);
 const PORT = process.env.PORT || 3333;
-app.listen(PORT, async () => {
+const server = http_1.default.createServer(app);
+(0, socket_1.initSocket)(server, allowedOrigins);
+server.listen(PORT, async () => {
     // Tenta conectar ao banco para confirmar que está tudo ok
     await prisma_1.prisma.$connect();
     // Inicia as rotinas em segundo plano (Despertador)

@@ -7,6 +7,8 @@ import { VoteController } from './controllers/VoteController';
 import { isAuthenticated, isAdministrator } from './middlewares/auth';
 import { prisma } from './prisma';
 
+import { GameController } from './controllers/GameController';
+
 export const routes = Router();
 
 const authController = new AuthController();
@@ -14,6 +16,7 @@ const movieController = new MovieController();
 const userController = new UserController();
 const communityController = new CommunityController();
 const voteController = new VoteController();
+const gameController = new GameController();
 
 // Rotas Públicas
 routes.post('/login', authController.login);
@@ -56,6 +59,13 @@ routes.get('/movies/public/:username', async (req, res) => {
 
 // Rotas Protegidas (Exigem o envio do Token no header de Autorização)
 routes.use(isAuthenticated);
+
+// Rotas do Jogo de Adivinhação
+routes.post('/game/guess', gameController.guess);
+routes.get('/game/poster', gameController.getDailyPoster);
+routes.post('/game/guess-poster', gameController.guessPoster);
+routes.get('/game/synopsis', gameController.getDailySynopsis);
+routes.post('/game/guess-synopsis', gameController.guessSynopsis);
 
 // Rotas de votação Twitch
 routes.post('/votes/start', voteController.start);

@@ -8,6 +8,7 @@ class CommunityController {
         try {
             const streamers = await prisma_1.prisma.user.findMany({
                 where: {
+                    isStreamerMode: true,
                     movies: { some: {} } // Filtra quem tem filmes
                 },
                 select: {

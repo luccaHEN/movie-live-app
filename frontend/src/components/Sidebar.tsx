@@ -1,4 +1,4 @@
-import { Home, Search, Film, BarChart2, Settings as SettingsIcon, UserPlus, LogOut } from 'lucide-react';
+import { Home, Search, Film, BarChart2, Settings as SettingsIcon, UserPlus, LogOut, Gamepad2 } from 'lucide-react';
 
 interface SidebarProps {
   view: string;
@@ -23,6 +23,7 @@ export default function Sidebar({ view, handleNavigation, user, handleLogout }: 
         <button className={`sidebar-btn ${view === 'home' ? 'active' : ''}`} onClick={() => handleNavigation('home')}><Home size={18} /> Início</button>
         <button className={`sidebar-btn ${view === 'search' ? 'active' : ''}`} onClick={() => handleNavigation('search')}><Search size={18} /> Buscar Filmes</button>
         <button className={`sidebar-btn ${view === 'saved' ? 'active' : ''}`} onClick={() => handleNavigation('saved')}><Film size={18} /> Meus Filmes</button>
+        <button className={`sidebar-btn ${view === 'guess' ? 'active' : ''}`} onClick={() => handleNavigation('guess')}><Gamepad2 size={18} /> Sumasdle</button>
         <button className={`sidebar-btn ${view === 'dashboard' ? 'active' : ''}`} onClick={() => handleNavigation('dashboard')}><BarChart2 size={18} /> Dashboard</button>
         <button className={`sidebar-btn ${view === 'settings' ? 'active' : ''}`} onClick={() => handleNavigation('settings')}><SettingsIcon size={18} /> Configurações</button>
         {user?.isAdmin && (
