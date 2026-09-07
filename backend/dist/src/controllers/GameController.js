@@ -178,11 +178,11 @@ class GameController {
             let dailyMovie = null;
             let synopsis = '';
             let attempts = 0;
+            const axios = require('axios');
             while (attempts < 10) {
                 const index = Math.abs((daysSinceEpoch + attempts) * jump) % watchedMovies.length;
                 const candidate = watchedMovies[index];
                 try {
-                    const axios = require('axios');
                     const tmdbRes = await axios.get(`https://api.themoviedb.org/3/movie/${candidate.tmdbId}?language=pt-BR`, {
                         headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
                     });
@@ -237,11 +237,11 @@ class GameController {
             let dailyMovie = null;
             let fullSynopsisText = null;
             let attempts = 0;
+            const axios = require('axios');
             while (attempts < 10) {
                 const index = Math.abs((daysSinceEpoch + attempts) * jump) % watchedMovies.length;
                 const candidate = watchedMovies[index];
                 try {
-                    const axios = require('axios');
                     const tmdbRes = await axios.get(`https://api.themoviedb.org/3/movie/${candidate.tmdbId}?language=pt-BR`, {
                         headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}` }
                     });

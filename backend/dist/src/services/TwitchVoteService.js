@@ -33,6 +33,10 @@ async function startVoting(userId, movieId, twitchChannel, durationMinutes = 3) 
     client.on('message', (channel, tags, message, self) => {
         if (self)
             return;
+        // Segurança: ignora mensagens se esta não for mais a sessão ativa (evita vazamento de votos antigos)
+        const currentSession = activeSessions.get(userId);
+        if (!currentSession || currentSession.movieId !== movieId)
+            return;
         const trimmed = message.trim().toLowerCase();
         // Procura por !nota seguido por um número
         const match = trimmed.match(/^!nota\s+(\d+([.,]\d{1,2})?)$/);
@@ -153,6 +157,7 @@ async function stopVoting(userId) {
     }
     // Desconecta da Twitch
     try {
+        session.client.removeAllListeners();
         await session.client.disconnect();
     }
     catch (e) {
