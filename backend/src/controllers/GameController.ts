@@ -133,6 +133,39 @@ export class GameController {
     }
   }
 
+  public async getDailyHints(req: Request, res: Response): Promise<Response | any> {
+    const userId = (req as any).userId;
+    try {
+      const watchedMovies = await prisma.movie.findMany({
+        where: { userId, watched: true },
+        orderBy: { id: 'asc' },
+      });
+
+      if (watchedMovies.length === 0) {
+        return res.status(400).json({ error: 'Sem filmes assistidos para gerar dicas.' });
+      }
+
+      const options: Intl.DateTimeFormatOptions = { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' };
+      const formatter = new Intl.DateTimeFormat('en-CA', options);
+      const today = formatter.format(new Date());
+
+      const epoch = new Date('2024-01-01T00:00:00-03:00');
+      const now = new Date(today + 'T00:00:00-03:00');
+      const daysSinceEpoch = Math.floor((now.getTime() - epoch.getTime()) / (1000 * 60 * 60 * 24));
+
+      const jump = (userId * 17) % watchedMovies.length || 1;
+      const dailyIndex = Math.abs(daysSinceEpoch * jump) % watchedMovies.length;
+      const dailyMovie = watchedMovies[dailyIndex];
+
+      return res.json({ 
+        rating: dailyMovie.streamerRating, 
+        requestedBy: dailyMovie.requestedBy 
+      });
+    } catch (error: any) {
+      return res.status(500).json({ error: 'Erro ao buscar dicas diárias.' });
+    }
+  }
+
   public async guessPoster(req: Request, res: Response): Promise<Response | any> {
     const userId = (req as any).userId;
     const { movieId } = req.body;

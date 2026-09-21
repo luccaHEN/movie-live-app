@@ -40,6 +40,7 @@ export default function GuessMovie({ token }: GuessMovieProps) {
         return saved ? JSON.parse(saved) : [];
     });
     const [dailySynopsis, setDailySynopsis] = useState<string>('');
+    const [dailyHints, setDailyHints] = useState<{rating: number | null, requestedBy: string | null} | null>(null);
 
     useEffect(() => {
         localStorage.setItem(storageKey, JSON.stringify(guesses));
@@ -76,6 +77,13 @@ export default function GuessMovie({ token }: GuessMovieProps) {
                setDailySynopsis(res.data.synopsis);
            })
            .catch(() => console.error("Sem sinopse hoje"));
+
+        // Fetch daily hints
+        api.get('/game/hints', { headers: { Authorization: `Bearer ${token}` } })
+           .then(res => {
+               setDailyHints(res.data);
+           })
+           .catch(() => console.error("Sem dicas hoje"));
     }, [token]);
 
     useEffect(() => {
@@ -83,16 +91,33 @@ export default function GuessMovie({ token }: GuessMovieProps) {
             setFilteredMovies([]);
             return;
         }
-        const lower = searchTerm.toLowerCase();
+        const normalizeText = (str: string) => {
+            return str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : '';
+        };
+
+        const searchNormalized = normalizeText(searchTerm);
         
         let results = [];
+        const filterFn = (m: any) => normalizeText(m.title).includes(searchNormalized);
+
         if (mode === 'classic') {
-            results = watchedMovies.filter(m => m.title.toLowerCase().includes(lower) && !guesses.find(g => g.guess.id === m.id));
+            results = watchedMovies.filter(m => filterFn(m) && !guesses.find(g => g.guess.id === m.id));
         } else if (mode === 'poster') {
-            results = watchedMovies.filter(m => m.title.toLowerCase().includes(lower) && !posterGuesses.find(g => g.guess.id === m.id));
+            results = watchedMovies.filter(m => filterFn(m) && !posterGuesses.find(g => g.guess.id === m.id));
         } else {
-            results = watchedMovies.filter(m => m.title.toLowerCase().includes(lower) && !synopsisGuesses.find(g => g.guess.id === m.id));
+            results = watchedMovies.filter(m => filterFn(m) && !synopsisGuesses.find(g => g.guess.id === m.id));
         }
+
+        results.sort((a, b) => {
+            const titleA = normalizeText(a.title);
+            const titleB = normalizeText(b.title);
+            const startsWithA = titleA.startsWith(searchNormalized);
+            const startsWithB = titleB.startsWith(searchNormalized);
+
+            if (startsWithA && !startsWithB) return -1;
+            if (!startsWithA && startsWithB) return 1;
+            return titleA.localeCompare(titleB);
+        });
         
         setFilteredMovies(results.slice(0, 8));
     }, [searchTerm, watchedMovies, guesses, posterGuesses, synopsisGuesses, mode]);
@@ -346,8 +371,15 @@ export default function GuessMovie({ token }: GuessMovieProps) {
                     {searchTerm && filteredMovies.length > 0 && (
                         <ul className="autocomplete-list">
                             {filteredMovies.map(m => (
-                                <li key={m.id} className="autocomplete-item" onClick={() => handleMovieSelect(m)}>
-                                    <Film size={16} /> {m.title}
+                                <li key={m.id} className="autocomplete-item" onClick={() => handleMovieSelect(m)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '10px 20px', gap: '5px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 'bold' }}>
+                                        <Film size={16} /> {m.title}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '15px', fontSize: '0.85rem', color: '#aaa', flexWrap: 'wrap' }}>
+                                        <span><strong>Gênero:</strong> {m.genre || 'N/A'}</span>
+                                        <span><strong>Nota:</strong> {m.streamerRating ? m.streamerRating.toFixed(1) : 'N/A'}</span>
+                                        <span><strong>Pedido por:</strong> {m.requestedBy || 'Ninguém'}</span>
+                                    </div>
                                 </li>
                             ))}
                         </ul>
@@ -414,6 +446,20 @@ export default function GuessMovie({ token }: GuessMovieProps) {
 
             {mode === 'classic' && (
                 <div style={{ width: '100%', overflowX: 'auto', padding: '10px 0' }}>
+                    {dailyHints && (
+                        <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginBottom: '20px' }}>
+                            {guesses.length >= 4 && !guesses.some(g => g.guess.streamerRating?.status === 'match') && !currentWinner && (
+                                <div style={{ background: 'var(--panel-bg)', padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--primary)', color: '#fff', fontSize: '0.9rem' }}>
+                                    <strong>Dica (Nota):</strong> {dailyHints.rating ? dailyHints.rating.toFixed(1) : 'N/A'}
+                                </div>
+                            )}
+                            {guesses.length >= 7 && !guesses.some(g => g.guess.requestedBy?.status === 'match') && !currentWinner && (
+                                <div style={{ background: 'var(--panel-bg)', padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--primary)', color: '#fff', fontSize: '0.9rem' }}>
+                                    <strong>Dica (Resgatado por):</strong> {dailyHints.requestedBy || 'Ninguém'}
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <div style={{ minWidth: '700px' }}>
                         <div className="guess-grid-header">
                             <div className="col-title">Filme</div>

@@ -66,6 +66,7 @@ routes.get('/game/poster', gameController.getDailyPoster);
 routes.post('/game/guess-poster', gameController.guessPoster);
 routes.get('/game/synopsis', gameController.getDailySynopsis);
 routes.post('/game/guess-synopsis', gameController.guessSynopsis);
+routes.get('/game/hints', gameController.getDailyHints);
 
 // Rotas de votação Twitch
 routes.post('/votes/start', voteController.start);
