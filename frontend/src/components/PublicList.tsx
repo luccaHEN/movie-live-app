@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, ChevronDown, Trophy, Crown, Star, Award } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Trophy, Crown, Star, Award } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import api from '../services/api';
 import Modal from './Modal';
@@ -46,6 +46,7 @@ export default function PublicList() {
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | 'none'>('none');
   const [selectedDay, setSelectedDay] = useState<{ date: string, movies: any[] } | null>(null);
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
+  const [ratingFilter, setRatingFilter] = useState<string>('ALL');
 
   useEffect(() => {
     const fetchPublicMovies = async () => {
@@ -130,32 +131,21 @@ export default function PublicList() {
     .filter(m => removeAccents(m.title.toLowerCase()).includes(lowerCaseQuery) || (m.requestedBy && removeAccents(m.requestedBy.toLowerCase()).includes(lowerCaseQuery)))
     .sort((a, b) => new Date(b.watchDate || 0).getTime() - new Date(a.watchDate || 0).getTime());
 
-  // Agrupa os filmes assistidos por mês (ex: "2024-05")
+  // Agrupa os filmes assistidos por nota
   const groupedWatchedMovies: Record<string, any[]> = {};
   watchedMovies.forEach(m => {
-    const key = m.watchDate ? String(m.watchDate).substring(0, 7) : 'none';
+    const key = m.streamerRating != null ? String(m.streamerRating) : 'S/N';
     if (!groupedWatchedMovies[key]) groupedWatchedMovies[key] = [];
     groupedWatchedMovies[key].push(m);
   });
 
-  // Ordena os meses do mais recente para o mais antigo
-  const sortedMonthKeys = Object.keys(groupedWatchedMovies).sort((a, b) => {
-    if (a === 'none') return 1;
-    if (b === 'none') return -1;
-    return b.localeCompare(a);
+  // Ordena as notas da maior para a menor
+  const sortedRatingKeys = Object.keys(groupedWatchedMovies).sort((a, b) => {
+    if (a === 'S/N') return 1;
+    if (b === 'S/N') return -1;
+    return parseFloat(b) - parseFloat(a);
   });
 
-  const getMonthLabel = (key: string) => {
-    if (key === 'none') return 'Sem data';
-    const [year, month] = key.split('-');
-    const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, 1));
-    const monthName = date.toLocaleDateString('pt-BR', { month: 'long', timeZone: 'UTC' });
-    return `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
-  };
-
-  const toggleMonth = (monthKey: string) => {
-    setExpandedMonths(prev => ({ ...prev, [monthKey]: !prev[monthKey] }));
-  };
 
   // Lógica para agrupar e calcular a média de notas dos resgatadores (mínimo de 3 filmes)
   const rescuerStats: Record<string, { totalRescues: number, ratedCount: number, ratingSum: number, masterpieceCount: number, trashCount: number, comedyCount: number, actionCount: number, scifiCount: number, mysteryCount: number, animationCount: number, adventureCount: number, romanceCount: number, fantasyCount: number, historyCount: number, dramaCount: number, crimeCount: number, familyCount: number, musicCount: number, hasMasterpiece: boolean, hasDisaster: boolean }> = {};
@@ -627,63 +617,69 @@ export default function PublicList() {
 
           {view === 'WATCHED' && (
             <div style={{ width: 'calc(100% - 40px)', maxWidth: '1400px', margin: '0 auto 20px auto', boxSizing: 'border-box' }}>
-              <h2 style={{ color: '#10b981', borderBottom: '1px solid #333', paddingBottom: '10px', marginBottom: '20px' }}>
-                Já Assistidos ✅
-              </h2>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
+                <select
+                  value={ratingFilter}
+                  onChange={(e) => setRatingFilter(e.target.value)}
+                  style={{ padding: '8px 15px', borderRadius: '8px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-color)', color: '#fff', fontSize: '0.9rem', outline: 'none', cursor: 'pointer' }}
+                >
+                  <option value="ALL">Todas as Notas</option>
+                  {sortedRatingKeys.map(key => (
+                    <option key={key} value={key}>{key === 'S/N' ? 'Sem Nota' : `Nota ${key}`}</option>
+                  ))}
+                </select>
+              </div>
               {watchedMovies.length === 0 ? <p>Nenhum filme assistido ainda.</p> : (
                 <div>
-                  {sortedMonthKeys.map((monthKey) => {
-                    const isExpanded = expandedMonths[monthKey];
+                  {sortedRatingKeys.filter(key => ratingFilter === 'ALL' || key === ratingFilter).map((ratingKey) => {
                     return (
-                    <div key={monthKey} className="accordion-item">
-                      <div 
-                        onClick={() => toggleMonth(monthKey)}
-                        className={`accordion-header ${isExpanded ? 'expanded' : ''}`}
-                      >
-                        <h3 style={{ color: isExpanded ? 'var(--success)' : 'var(--primary)', margin: 0, fontSize: '1.2rem', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          {getMonthLabel(monthKey)}
+                      <div key={ratingKey} className="mural-section" style={{ marginBottom: '40px' }}>
+                        <h3 className="mural-header" style={{ color: 'var(--primary)', fontSize: '1.5rem', marginBottom: '20px', borderBottom: '2px solid var(--primary)', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          {ratingKey === 'S/N' ? 'Sem Nota' : `⭐ Nota ${ratingKey}`}
                           <span style={{ fontSize: '0.9rem', color: '#888', fontWeight: 'normal' }}>
-                            ({groupedWatchedMovies[monthKey].length} filme{groupedWatchedMovies[monthKey].length > 1 ? 's' : ''})
+                            ({groupedWatchedMovies[ratingKey].length} filme{groupedWatchedMovies[ratingKey].length > 1 ? 's' : ''})
                           </span>
                         </h3>
-                        <span style={{ transition: 'transform 0.3s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', color: isExpanded ? 'var(--success)' : 'var(--primary)', display: 'flex', alignItems: 'center' }}>
-                          <ChevronDown size={20} />
-                        </span>
-                      </div>
-                      
-                        <ul className={`accordion-content ${isExpanded ? 'expanded' : ''}`}>
-                          {groupedWatchedMovies[monthKey].map(movie => (
-                            <li 
+                        
+                        <div className="mural-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '20px' }}>
+                          {groupedWatchedMovies[ratingKey].map(movie => (
+                            <div 
                               key={movie.id} 
-                              className="watched-movie-card"
+                              className="mural-poster-card"
+                              style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#222', aspectRatio: '2/3', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'scale(1.05)';
+                                e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
+                                e.currentTarget.style.zIndex = '2';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'scale(1)';
+                                e.currentTarget.style.boxShadow = 'none';
+                                e.currentTarget.style.zIndex = '1';
+                              }}
                             >
-                              <div>
-                                {movie.poster ? (
-                                  <img src={`https://image.tmdb.org/t/p/w92${movie.poster}`} alt={movie.title} style={{ width: '40px', height: '60px', objectFit: 'cover', borderRadius: '4px', opacity: 0.7 }} />
-                                ) : (
-                                  <div style={{ width: '40px', height: '60px', backgroundColor: '#333', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: '#aaa', textAlign: 'center', opacity: 0.7 }}>Sem capa</div>
-                                )}
-                              </div>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <strong style={{ fontSize: '0.9rem', display: 'block', color: '#aaa', textDecoration: 'line-through', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={movie.title}>{movie.title}</strong>
+                              {movie.poster ? (
+                                <img src={`https://image.tmdb.org/t/p/w342${movie.poster}`} alt={movie.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px', textAlign: 'center', color: '#aaa', fontSize: '0.9rem' }}>
+                                  {movie.title}
+                                </div>
+                              )}
+                              
+                              <div className="mural-poster-info" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.95) 40%, #000)', padding: '20px 15px 15px 15px', color: '#fff', transform: 'translateY(0)', transition: 'transform 0.3s' }}>
+                                <div style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '6px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
+                                  {movie.title}
+                                </div>
                                 {movie.requestedBy && (
-                                  <div style={{ fontSize: '0.8rem', color: '#888', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    De: <span style={{ color: 'var(--text-color)' }}>{movie.requestedBy}</span>
-                                  </div>
-                                )}
-                                {movie.watchDate && (
-                                  <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '2px' }}>
-                                    {new Date(movie.watchDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                                  <div style={{ fontSize: '0.8rem', color: '#ccc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    De: <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{movie.requestedBy}</span>
                                   </div>
                                 )}
                               </div>
-                              <div style={{ color: '#f59e0b', fontWeight: 'bold', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '5px 10px', borderRadius: '6px', whiteSpace: 'nowrap', flexShrink: 0, fontSize: '0.9rem' }}>
-                                {movie.streamerRating != null ? `⭐ ${movie.streamerRating.toFixed(1)}` : 'S/N'}
-                              </div>
-                            </li>
+                            </div>
                           ))}
-                        </ul>
-                    </div>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
